@@ -1,0 +1,26 @@
+version: "1.0"
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lorem
+    ports:
+      - "5433:5432"
+    volumes:
+      - lorem-volume:/var/lib/postgresql/data
+  dbeaver:
+    image: dbeaver/cloudbeaver:25.3.4
+    container_name: dbeaver
+    restart: always
+    ports:
+      - "9090:8978"
+    volumes:
+      - dbeaver-data:/opt/dbeaver/data
+
+volumes:
+  lorem-volume:
+  dbeaver-data:
