@@ -3,25 +3,33 @@ package database
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
+type Base struct {
+	ID        uuid.UUID `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
+
 // User
 type User struct {
-	gorm.Model
-	UserName     string `gorm:"type:varchar(255);not null;unique"`
+	Base
+	Username     string `gorm:"type:varchar(255);not null;unique"`
 	FirstName    string `gorm:"type:varchar(255);not null"`
 	LastName     string `gorm:"type:varchar(255);not null"`
 	Email        string `gorm:"type:varchar(255);not null;unique"`
 	PasswordHash string `gorm:"type:varchar(255);not null"`
-	Telephone    string
-	ZipCode      string `gorm:"type:varchar(10)"`
-	Road         string `gorm:"type:varchar(255)"`
-	District     string `gorm:"type:varchar(255)"`
-	SubDistrict  string `gorm:"type:varchar(255)"`
-	HouseNumber  string `gorm:"type:varchar(10)"`
-	Province     string `gorm:"type:varchar(255)"`
-	IsAdmin      bool   `gorm:"not null;default:false"`
+	Telephone    *string
+	ZipCode      *string `gorm:"type:varchar(10)"`
+	Road         *string `gorm:"type:varchar(255)"`
+	District     *string `gorm:"type:varchar(255)"`
+	SubDistrict  *string `gorm:"type:varchar(255)"`
+	HouseNumber  *string `gorm:"type:varchar(10)"`
+	Province     *string `gorm:"type:varchar(255)"`
+	IsAdmin      *bool   `gorm:"not null;default:false"`
 	Cart         Cart
 	Orders       []Order
 	Payments     []Payment
@@ -29,13 +37,13 @@ type User struct {
 
 // Cart
 type Cart struct {
-	gorm.Model
+	Base
 	UserID    string     `gorm:"not null"`
 	CartItems []CartItem `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type CartItem struct {
-	gorm.Model
+	Base
 	CartID    uint
 	ProductID uint
 	Product   Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
@@ -44,7 +52,7 @@ type CartItem struct {
 
 // Product
 type Product struct {
-	gorm.Model
+	Base
 	Name        string `gorm:"type:varchar(255);not null"`
 	Description *string
 	Price       float32 `gorm:"type:decimal(10,2);not null;check:price > 0"`
@@ -63,7 +71,7 @@ type AdminProductLog struct {
 
 // Category
 type Category struct {
-	gorm.Model
+	Base
 	Name     string    `gorm:"type:varchar(255);not null"`
 	Products []Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
@@ -79,7 +87,7 @@ const (
 )
 
 type Order struct {
-	gorm.Model
+	Base
 	UserID      uint        `gorm:"not null"`
 	User        User        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	TotalPrice  float32     `gorm:"type:decimal(10,2);not null;check:total_price >= 0"`
@@ -88,7 +96,7 @@ type Order struct {
 }
 
 type OrderItem struct {
-	gorm.Model
+	Base
 	OrderID         uint  `gorm:"primaryKey;not null"`
 	Order           Order `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	ProductID       uint
@@ -99,7 +107,7 @@ type OrderItem struct {
 
 // Payment
 type Payment struct {
-	gorm.Model
+	Base
 	OrderID       uint    `gorm:"not null"`
 	UserID        uint    `gorm:"not null"`
 	PaymentMethod string  `gorm:"type:varchar(255);not null"`

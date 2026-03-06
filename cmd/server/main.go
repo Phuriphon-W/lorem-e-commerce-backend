@@ -37,7 +37,7 @@ func main() {
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
 
 		// Create a new router and register APIs (from internal/api)
-		router := api.NewRouter()
+		router := api.NewRouter(db)
 
 		hooks.OnStart(func() {
 			port := cfg.Port
