@@ -28,6 +28,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.15 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.41.7 // indirect
 	github.com/aws/smithy-go v1.24.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 )
 
