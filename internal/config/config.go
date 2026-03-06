@@ -1,6 +1,7 @@
 package config
 
 import (
+	"log"
 	"os"
 	"strconv"
 
@@ -23,19 +24,19 @@ type Config struct {
 func LoadConfig() *Config {
 	err := godotenv.Load()
 	if err != nil {
-		panic("Error loading .env file")
+		log.Fatal("Error loading .env file")
 	}
 
 	portStr := getEnv("PORT", "5000")
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		panic("Invalid PORT value in .env file")
+		log.Fatal("Invalid PORT value in .env file")
 	}
 
 	dbPortStr := getEnv("DB_PORT", "5432")
 	dbPort, err := strconv.Atoi(dbPortStr)
 	if err != nil {
-		panic("Invalid DB_PORT value in .env file")
+		log.Fatal("Invalid DB_PORT value in .env file")
 	}
 
 	config := &Config{

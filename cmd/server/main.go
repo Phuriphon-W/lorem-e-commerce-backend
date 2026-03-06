@@ -23,22 +23,23 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Connect to the database
-	dbSession := database.ConnectDB(cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort)
-	defer database.DisconnectDB(dbSession)
+	db := database.NewPostgresDb(cfg)
+	defer db.DisconnectDB()
 
 	// Connect to S3
 	s3Client, err := database.ConnectS3(cfg.S3Endpoint)
 	if err != nil {
-		log.Fatalf("Failed to connect to S3: %v", err)
+		panic(fmt.Sprintf("Failed to connect to S3: %v", err))
 	}
 
 	fmt.Println(s3Client)
 
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
-		hooks.OnStart(func() {
-			// Init Router
-			router := echo.New()
 
+		// Create a new router and register APIs (from internal/api)
+		router := echo.New()
+
+		hooks.OnStart(func() {
 			port := cfg.Port
 			if options.Port != 8888 {
 				port = options.Port
