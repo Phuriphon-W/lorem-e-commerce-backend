@@ -101,7 +101,7 @@ type OrderItem struct {
 type Payment struct {
 	gorm.Model
 	OrderID       uint    `gorm:"not null"`
-	CustomerID    uint    `gorm:"not null"`
+	UserID        uint    `gorm:"not null"`
 	PaymentMethod string  `gorm:"type:varchar(255);not null"`
 	PaymentAmount float64 `gorm:"type:decimal(10,2);not null;check:payment_amount >= 0"`
 	PaymentStatus string  `gorm:"type:varchar(20);not null"`
