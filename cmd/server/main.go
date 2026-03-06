@@ -5,11 +5,11 @@ import (
 	"log"
 	"net/http"
 
+	"lorem-backend/internal/api"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 
 	"github.com/danielgtaylor/huma/v2/humacli"
-	"github.com/labstack/echo/v4"
 )
 
 // Options defines the command-line options for the server.
@@ -37,7 +37,7 @@ func main() {
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
 
 		// Create a new router and register APIs (from internal/api)
-		router := echo.New()
+		router := api.NewRouter()
 
 		hooks.OnStart(func() {
 			port := cfg.Port
