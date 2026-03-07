@@ -35,3 +35,8 @@ type (
 		Body CategoryDto
 	}
 )
+
+// Get All Categories
+type GetCategoriesOutputDto struct {
+	Body []CategoryDto
+}

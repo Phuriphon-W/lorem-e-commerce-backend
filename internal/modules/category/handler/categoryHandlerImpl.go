@@ -53,3 +53,25 @@ func (c *categoryHandlerImpl) GetCategoryById(ctx context.Context, input *dto.Ge
 
 	return res, nil
 }
+
+func (c *categoryHandlerImpl) GetCategories(ctx context.Context, _ *struct{}) (*dto.GetCategoriesOutputDto, error) {
+	categories, err := c.categoryRepository.GetCategories(ctx)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve categories: %v", err)
+	}
+
+	results := make([]dto.CategoryDto, len(categories))
+	for i, c := range categories {
+		results[i] = dto.CategoryDto{
+			ID:   c.ID,
+			Name: c.Name,
+		}
+	}
+
+	res := &dto.GetCategoriesOutputDto{
+		Body: results,
+	}
+
+	return res, nil
+}
