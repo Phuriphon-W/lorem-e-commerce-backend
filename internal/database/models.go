@@ -55,10 +55,10 @@ type Product struct {
 	Base
 	Name        string `gorm:"type:varchar(255);not null;unique"`
 	Description *string
-	Price       float32 `gorm:"type:decimal(10,2);not null;check:price > 0"`
-	Available   uint    `gorm:"default:0;not null"`
-	ImageURL    string  `gorm:"column:image_url;not null"`
-	CategoryID  uint    `gorm:"not null"`
+	Price       float32   `gorm:"type:decimal(10,2);not null;check:price > 0"`
+	Available   uint      `gorm:"default:0;not null"`
+	ImageURL    string    `gorm:"column:image_url;not null"`
+	CategoryID  uuid.UUID `gorm:"not null"`
 	Category    Category
 }
 

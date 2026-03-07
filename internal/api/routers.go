@@ -4,6 +4,8 @@ import (
 	"lorem-backend/internal/database"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
+	productHandler "lorem-backend/internal/modules/product/handler"
+	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
 	userRepo "lorem-backend/internal/modules/user/repository"
 	"net/http"
@@ -44,6 +46,7 @@ func createHumaConfig() huma.Config {
 func registerRoutes(api huma.API, db database.Database) {
 	registerUserRoute(api, db)
 	registerCategoryRoute(api, db)
+	registerProductRoute(api, db)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {
@@ -111,4 +114,21 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Category"},
 		DefaultStatus: http.StatusOK,
 	}, categoryHandler.GetCategories)
+}
+
+func registerProductRoute(api huma.API, db database.Database) {
+	// Init product repo and handler
+	productRepo := productRepo.NewProductPostgresRepository(db)
+	productHandler := productHandler.NewProductHandlerImpl(productRepo)
+
+	// POST /product
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-product",
+		Method:        http.MethodPost,
+		Path:          "/product",
+		Summary:       "Create Product",
+		Description:   "Create a new product",
+		Tags:          []string{"Product"},
+		DefaultStatus: http.StatusCreated,
+	}, productHandler.CreateProduct)
 }
