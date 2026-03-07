@@ -47,3 +47,22 @@ func (u *userHandlerImpl) CreateUser(ctx context.Context, input *dto.CreateUserI
 	}
 	return res, nil
 }
+
+func (u *userHandlerImpl) GetUserById(ctx context.Context, input *dto.GetUserByIdInputDto) (*dto.GetUserByIdOutputDto, error) {
+	user, err := u.userRepository.GetUserByID(ctx, input.ID)
+
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve user with ID: %v", input.ID)
+	}
+
+	res := &dto.GetUserByIdOutputDto{
+		Body: dto.UserDto{
+			ID:        user.ID,
+			Username:  user.Username,
+			LastName:  user.LastName,
+			FirstName: user.FirstName,
+		},
+	}
+
+	return res, nil
+}
