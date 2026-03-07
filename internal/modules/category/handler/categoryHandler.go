@@ -8,4 +8,5 @@ import (
 type CategoryHandler interface {
 	CreateCategory(ctx context.Context, input *dto.CreateCategoryInputDto) (*dto.CreateCategoryOutputDto, error)
 	GetCategoryById(ctx context.Context, input *dto.GetCategoryByIdInputDto) (*dto.GetCategoryByIdOutputDto, error)
+	GetCategories(ctx context.Context, _ *struct{}) (*dto.GetCategoriesOutputDto, error)
 }

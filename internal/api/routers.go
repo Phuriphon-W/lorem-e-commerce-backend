@@ -89,4 +89,15 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Category"},
 		DefaultStatus: http.StatusOK,
 	}, categoryHandler.GetCategoryById)
+
+	// GET /category
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-categories",
+		Method:        http.MethodGet,
+		Path:          "/category",
+		Summary:       "Get All Categories",
+		Description:   "Get all categories",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.GetCategories)
 }

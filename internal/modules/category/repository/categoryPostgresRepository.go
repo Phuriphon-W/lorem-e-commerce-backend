@@ -38,3 +38,13 @@ func (c *categoryPostgresRepository) GetCategoryByID(ctx context.Context, catID 
 
 	return &category, nil
 }
+
+func (c *categoryPostgresRepository) GetCategories(ctx context.Context) ([]database.Category, error) {
+	categories, err := gorm.G[database.Category](c.db.GetDb()).Find(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return categories, nil
+}
