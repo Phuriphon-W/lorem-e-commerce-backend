@@ -2,8 +2,10 @@ package api
 
 import (
 	"lorem-backend/internal/database"
-	"lorem-backend/internal/modules/user/handlers"
-	"lorem-backend/internal/modules/user/repositories"
+	catHandler "lorem-backend/internal/modules/category/handler"
+	catRepo "lorem-backend/internal/modules/category/repository"
+	userHandler "lorem-backend/internal/modules/user/handler"
+	userRepo "lorem-backend/internal/modules/user/repository"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -40,9 +42,14 @@ func createHumaConfig() huma.Config {
 }
 
 func registerRoutes(api huma.API, db database.Database) {
+	registerUserRoute(api, db)
+	registerCategoryRoute(api, db)
+}
+
+func registerUserRoute(api huma.API, db database.Database) {
 	// Init user repo and handler
-	userRepo := repositories.NewUserPostgresRepository(db)
-	userHandler := handlers.NewUserHandlerImpl(userRepo)
+	userRepo := userRepo.NewUserPostgresRepository(db)
+	userHandler := userHandler.NewUserHandlerImpl(userRepo)
 
 	// POST /user
 	huma.Register(api, huma.Operation{
@@ -54,4 +61,32 @@ func registerRoutes(api huma.API, db database.Database) {
 		Tags:          []string{"User"},
 		DefaultStatus: http.StatusCreated,
 	}, userHandler.CreateUser)
+}
+
+func registerCategoryRoute(api huma.API, db database.Database) {
+	// Init category repo and handler
+	categoryRepo := catRepo.NewCategoryPostgresRepository(db)
+	categoryHandler := catHandler.NewCategoryHandlerImpl(categoryRepo)
+
+	// POST /category
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-category",
+		Method:        http.MethodPost,
+		Path:          "/category",
+		Summary:       "Create Category",
+		Description:   "Create a new category",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusCreated,
+	}, categoryHandler.CreateCategory)
+
+	// GET /category/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-category-by-id",
+		Method:        http.MethodGet,
+		Path:          "/category/{id}",
+		Summary:       "Get Category",
+		Description:   "Get a category by id",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.GetCategoryById)
 }
