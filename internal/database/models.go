@@ -53,10 +53,10 @@ type CartItem struct {
 // Product
 type Product struct {
 	Base
-	Name        string `gorm:"type:varchar(255);not null"`
+	Name        string `gorm:"type:varchar(255);not null;unique"`
 	Description *string
 	Price       float32 `gorm:"type:decimal(10,2);not null;check:price > 0"`
-	Available   uint16  `gorm:"default:0;not null"`
+	Available   uint    `gorm:"default:0;not null"`
 	ImageURL    string  `gorm:"column:image_url;not null"`
 	CategoryID  uint    `gorm:"not null"`
 	Category    Category
@@ -72,7 +72,7 @@ type AdminProductLog struct {
 // Category
 type Category struct {
 	Base
-	Name     string    `gorm:"type:varchar(255);not null"`
+	Name     string    `gorm:"type:varchar(255);not null;unique"`
 	Products []Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 

@@ -1,27 +1,27 @@
-package handlers
+package handler
 
 import (
 	"context"
 	"fmt"
 	"lorem-backend/internal/database"
-	"lorem-backend/internal/modules/user/dtos"
-	"lorem-backend/internal/modules/user/repositories"
+	"lorem-backend/internal/modules/user/dto"
+	"lorem-backend/internal/modules/user/repository"
 	"lorem-backend/internal/utils"
 )
 
 type userHandlerImpl struct {
-	userRepository repositories.UserRepository
+	userRepository repository.UserRepository
 }
 
 func NewUserHandlerImpl(
-	userRepository repositories.UserRepository,
+	userRepository repository.UserRepository,
 ) UserHandler {
 	return &userHandlerImpl{
 		userRepository: userRepository,
 	}
 }
 
-func (u *userHandlerImpl) CreateUser(ctx context.Context, input *dtos.CreateUserRequestDto) (*dtos.CreateUserResponseDto, error) {
+func (u *userHandlerImpl) CreateUser(ctx context.Context, input *dto.CreateUserInputDto) (*dto.CreateUserOutputDto, error) {
 	hashed, err := utils.HashPassword(input.Body.Password)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to hash password: %v", err)
@@ -35,13 +35,13 @@ func (u *userHandlerImpl) CreateUser(ctx context.Context, input *dtos.CreateUser
 		PasswordHash: hashed,
 	}
 
-	userID, err := u.userRepository.CreateUser(context.Background(), data)
+	userID, err := u.userRepository.CreateUser(ctx, data)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create user: %v", err)
 	}
 
-	res := &dtos.CreateUserResponseDto{
-		Body: dtos.CreateUserResponseDtoBody{
+	res := &dto.CreateUserOutputDto{
+		Body: dto.CreateUserOutputDtoBody{
 			ID: userID,
 		},
 	}

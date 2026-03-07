@@ -1,4 +1,4 @@
-package repositories
+package repository
 
 import (
 	"context"
@@ -39,7 +39,7 @@ func (r *userPostgresRepository) GetUsers(ctx context.Context) ([]database.User,
 	return users, nil
 }
 
-func (r *userPostgresRepository) GetUserByID(ctx context.Context, userID uint) (*database.User, error) {
+func (r *userPostgresRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*database.User, error) {
 	user, err := gorm.G[database.User](r.db.GetDb()).Where("id = ?", userID).First(ctx)
 
 	if err != nil {
