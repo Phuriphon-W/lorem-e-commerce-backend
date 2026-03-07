@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"lorem-backend/internal/database"
-	"lorem-backend/internal/dtos"
-	"lorem-backend/internal/repositories"
+	"lorem-backend/internal/modules/user/dtos"
+	"lorem-backend/internal/modules/user/repositories"
 	"lorem-backend/internal/utils"
 )
 

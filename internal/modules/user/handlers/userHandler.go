@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"context"
-	"lorem-backend/internal/dtos"
+	"lorem-backend/internal/modules/user/dtos"
 )
 
 type UserHandler interface {
