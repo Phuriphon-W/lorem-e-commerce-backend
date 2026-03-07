@@ -131,4 +131,15 @@ func registerProductRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Product"},
 		DefaultStatus: http.StatusCreated,
 	}, productHandler.CreateProduct)
+
+	// GET /product
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-products",
+		Method:        http.MethodGet,
+		Path:          "/product",
+		Summary:       "Get All Products",
+		Description:   "Get all products",
+		Tags:          []string{"Product"},
+		DefaultStatus: http.StatusOK,
+	}, productHandler.GetProducts)
 }
