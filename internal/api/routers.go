@@ -61,6 +61,17 @@ func registerUserRoute(api huma.API, db database.Database) {
 		Tags:          []string{"User"},
 		DefaultStatus: http.StatusCreated,
 	}, userHandler.CreateUser)
+
+	// GET /user/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-user-by-id",
+		Method:        http.MethodGet,
+		Path:          "/user/{id}",
+		Summary:       "Get User By ID",
+		Description:   "Get a user by ID",
+		Tags:          []string{"User"},
+		DefaultStatus: http.StatusOK,
+	}, userHandler.GetUserById)
 }
 
 func registerCategoryRoute(api huma.API, db database.Database) {
