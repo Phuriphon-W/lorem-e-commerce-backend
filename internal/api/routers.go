@@ -2,8 +2,8 @@ package api
 
 import (
 	"lorem-backend/internal/database"
-	"lorem-backend/internal/handlers"
-	"lorem-backend/internal/repositories"
+	"lorem-backend/internal/modules/user/handlers"
+	"lorem-backend/internal/modules/user/repositories"
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
