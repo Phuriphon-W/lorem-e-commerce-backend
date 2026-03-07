@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
@@ -24,9 +25,23 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 		Price:       input.Body.Price,
 		Available:   input.Body.Available,
 		ImageURL:    input.Body.ImageURL,
+		CategoryID:  input.Body.CategoryId,
 	}
+
+	pid, err := p.productRepository.CreateProduct(ctx, product)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create product: %v", err)
+	}
+
+	res := &dto.CreatedProductOutputDto{
+		Body: dto.CreatedProductOutputDtoBody{
+			ID: pid,
+		},
+	}
+
+	return res, nil
 }
 
-func (p *productHandlerImpl) GetProducts(ctx context.Context, input dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
-
+func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
+	return nil, nil
 }

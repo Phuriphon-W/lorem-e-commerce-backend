@@ -6,6 +6,6 @@ import (
 )
 
 type ProductHandler interface {
-	CreateProduct(ctx context.Context, input dto.CreateProductInputDto) (*dto.CreatedProductOutputDto, error)
-	GetProducts(ctx context.Context, input dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error)
+	CreateProduct(ctx context.Context, input *dto.CreateProductInputDto) (*dto.CreatedProductOutputDto, error)
+	GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error)
 }
