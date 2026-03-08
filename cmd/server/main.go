@@ -20,7 +20,8 @@ type Options struct {
 
 func main() {
 	// Load configuration
-	cfg := config.LoadConfig()
+	config.LoadConfig()
+	cfg := config.GlobalConfig
 
 	// Connect to the database
 	db := database.NewPostgresDb(cfg)
@@ -35,7 +36,7 @@ func main() {
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
 
 		// Create a new router and register APIs (from internal/api)
-		router := api.NewRouter(db, cfg, s3Client)
+		router := api.NewRouter(db, s3Client)
 
 		hooks.OnStart(func() {
 			port := cfg.Port

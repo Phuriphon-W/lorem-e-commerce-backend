@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -25,4 +26,22 @@ func GenerateJWT(userId uuid.UUID, secret string, duration time.Duration) (strin
 	}
 
 	return tokenString, nil
+}
+
+func VerifyJWT(tokenString string, secret string) (jwt.MapClaims, error) {
+	// Parse and verify token
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		return []byte(secret), nil
+	}, jwt.WithValidMethods([]string{"HS256"}))
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Type insertion and check token valid
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
 }

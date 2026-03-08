@@ -17,13 +17,13 @@ type s3Repository struct {
 	BucketName    string
 }
 
-func NewS3Repository(s3Client *s3.Client, cfg *config.Config) ObjectStorage {
+func NewS3Repository(s3Client *s3.Client) ObjectStorage {
 	presignClient := s3.NewPresignClient(s3Client)
 
 	return &s3Repository{
 		Client:        s3Client,
 		PresignClient: presignClient,
-		BucketName:    cfg.BucketName,
+		BucketName:    config.GlobalConfig.BucketName,
 	}
 }
 

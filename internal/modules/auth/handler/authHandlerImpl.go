@@ -20,11 +20,11 @@ type authHandlerImpl struct {
 	jwtExpire      string
 }
 
-func NewAuthHandlerImpl(authRepo repository.AuthRepository, cfg *config.Config) AuthHandler {
+func NewAuthHandlerImpl(authRepo repository.AuthRepository) AuthHandler {
 	return &authHandlerImpl{
 		authRepository: authRepo,
-		jwtSecret:      cfg.JWTSecret,
-		jwtExpire:      cfg.JWTExpire,
+		jwtSecret:      config.GlobalConfig.JWTSecret,
+		jwtExpire:      config.GlobalConfig.JWTExpire,
 	}
 }
 
