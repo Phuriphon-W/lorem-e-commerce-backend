@@ -3,6 +3,8 @@ package api
 import (
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
+	authHandler "lorem-backend/internal/modules/auth/handler"
+	authRepo "lorem-backend/internal/modules/auth/repository"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
 	objectstorage "lorem-backend/internal/modules/objectStorage"
@@ -50,26 +52,33 @@ func registerRoutes(api huma.API, db database.Database, cfg *config.Config, s3 *
 	// Init object storage repository
 	s3Repo := objectstorage.NewS3Repository(s3, cfg)
 
+	registerAuthRoute(api, db, cfg)
 	registerUserRoute(api, db)
 	registerCategoryRoute(api, db)
 	registerProductRoute(api, db, s3Repo)
+}
+
+func registerAuthRoute(api huma.API, db database.Database, cfg *config.Config) {
+	// Init auth repo and handler
+	authRepo := authRepo.NewAuthPostgresRepository(db)
+	authHandler := authHandler.NewAuthHandlerImpl(authRepo, cfg)
+
+	// POST /auth/register
+	huma.Register(api, huma.Operation{
+		OperationID:   "register-user",
+		Method:        http.MethodPost,
+		Path:          "/auth/register",
+		Summary:       "Register User",
+		Description:   "Register a new user",
+		Tags:          []string{"Auth"},
+		DefaultStatus: http.StatusCreated,
+	}, authHandler.RegisterUser)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {
 	// Init user repo and handler
 	userRepo := userRepo.NewUserPostgresRepository(db)
 	userHandler := userHandler.NewUserHandlerImpl(userRepo)
-
-	// POST /user
-	huma.Register(api, huma.Operation{
-		OperationID:   "create-user",
-		Method:        http.MethodPost,
-		Path:          "/user",
-		Summary:       "Create User",
-		Description:   "Create a new user",
-		Tags:          []string{"User"},
-		DefaultStatus: http.StatusCreated,
-	}, userHandler.CreateUser)
 
 	// GET /user/{id}
 	huma.Register(api, huma.Operation{
