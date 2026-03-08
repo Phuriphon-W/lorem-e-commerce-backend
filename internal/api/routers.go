@@ -148,4 +148,15 @@ func registerProductRoute(api huma.API, db database.Database, obj objectstorage.
 		Tags:          []string{"Product"},
 		DefaultStatus: http.StatusOK,
 	}, productHandler.GetProducts)
+
+	// GET /product/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-product-by-id",
+		Method:        http.MethodGet,
+		Path:          "/product/{id}",
+		Summary:       "Get Product By ID",
+		Description:   "Get product by ID",
+		Tags:          []string{"Product"},
+		DefaultStatus: http.StatusOK,
+	}, productHandler.GetProductById)
 }
