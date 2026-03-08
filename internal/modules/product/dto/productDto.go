@@ -44,15 +44,13 @@ type (
 // Get Product
 type (
 	GetProductsInputDto struct {
-		Body struct {
-			PageNumber uint64 `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
-			PageSize   uint64 `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
-		}
+		PageNumber uint64 `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
+		PageSize   uint64 `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
 	}
 
 	GetProductsOutputDtoBody struct {
 		Products []ProductResponse
-		Total    uint64
+		Total    int64
 	}
 
 	GetProductsOutputDto struct {
