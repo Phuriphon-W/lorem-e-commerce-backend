@@ -73,6 +73,17 @@ func registerAuthRoute(api huma.API, db database.Database, cfg *config.Config) {
 		Tags:          []string{"Auth"},
 		DefaultStatus: http.StatusCreated,
 	}, authHandler.RegisterUser)
+
+	// POST /auth/signin
+	huma.Register(api, huma.Operation{
+		OperationID:   "sign-in-user",
+		Method:        http.MethodPost,
+		Path:          "/auth/signin",
+		Summary:       "Sign In User",
+		Description:   "Sign In a user",
+		Tags:          []string{"Auth"},
+		DefaultStatus: http.StatusOK,
+	}, authHandler.SignInUser)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {

@@ -10,6 +10,8 @@ import (
 	"lorem-backend/internal/utils"
 	"net/http"
 	"time"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 type authHandlerImpl struct {
@@ -67,6 +69,51 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 		Body: dto.RegisterUserOutputDtoBody{
 			ID:       userID,
 			Username: username,
+			JwtToken: token,
+		},
+	}
+
+	return res, nil
+}
+
+func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserInputDto) (*dto.SignInUserOutputDto, error) {
+	// Get userID, username, and hashed password
+	data, err := a.authRepository.GetUserByEmail(ctx, input.Body.Email)
+	if err != nil {
+		return nil, huma.Error404NotFound("Wrong E-mail or Password")
+	}
+
+	// Verify password
+	isMatched := utils.VerifyPassword(input.Body.Password, data.PasswordHash)
+
+	if !isMatched {
+		return nil, huma.Error404NotFound("Wrong E-mail or Password")
+	}
+
+	// Create token valid duration
+	duration, err := time.ParseDuration(a.jwtExpire)
+	if err != nil {
+		// Fallback to a default if the string is invalid
+		duration = 24 * time.Hour
+	}
+
+	// Generate JWT
+	token, err := utils.GenerateJWT(data.ID, a.jwtSecret, duration)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to generate session token: %v", err)
+	}
+
+	res := &dto.SignInUserOutputDto{
+		AuthToken: http.Cookie{
+			Name:     "authToken",
+			Value:    token,
+			Path:     "/",
+			HttpOnly: true,
+			MaxAge:   int(duration.Seconds()),
+		},
+		Body: dto.SignInUserOutputDtoBody{
+			ID:       data.ID,
+			Username: data.Username,
 			JwtToken: token,
 		},
 	}

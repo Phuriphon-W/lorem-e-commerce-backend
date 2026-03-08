@@ -9,6 +9,10 @@ import (
 
 type AuthRepository interface {
 	RegisterUser(ctx context.Context, user *database.User) (uuid.UUID, string, error)
-	// SignIn(ctx context.Context)
+	GetUserByEmail(ctx context.Context, email string) (*struct {
+		ID           uuid.UUID
+		Username     string
+		PasswordHash string
+	}, error)
 	// SignOut(ctx context.Context)
 }

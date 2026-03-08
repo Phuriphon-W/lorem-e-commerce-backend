@@ -43,3 +43,28 @@ func (a *authPostgresRepository) RegisterUser(ctx context.Context, user *databas
 
 	return user.ID, user.Username, nil
 }
+
+func (a *authPostgresRepository) GetUserByEmail(ctx context.Context, email string) (*struct {
+	ID           uuid.UUID
+	Username     string
+	PasswordHash string
+}, error) {
+
+	var result struct {
+		ID           uuid.UUID
+		Username     string
+		PasswordHash string
+	}
+
+	err := a.db.GetDb().WithContext(ctx).
+		Table("users").
+		Select("id", "username", "password_hash").
+		Where("email = ?", email).
+		First(&result).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
