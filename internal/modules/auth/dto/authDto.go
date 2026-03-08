@@ -50,3 +50,12 @@ type (
 		Body      SignInUserOutputDtoBody
 	}
 )
+
+// User sign out
+type (
+	SignOutUserInputDto struct{}
+
+	SignOutUserOutputDto struct {
+		AuthToken http.Cookie `header:"Set-Cookie" required:"true" doc:"Cleared Cookie Session Token"`
+	}
+)

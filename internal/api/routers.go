@@ -80,10 +80,21 @@ func registerAuthRoute(api huma.API, db database.Database, cfg *config.Config) {
 		Method:        http.MethodPost,
 		Path:          "/auth/signin",
 		Summary:       "Sign In User",
-		Description:   "Sign In a user",
+		Description:   "Sign in a user",
 		Tags:          []string{"Auth"},
 		DefaultStatus: http.StatusOK,
 	}, authHandler.SignInUser)
+
+	// POST /auth/signout
+	huma.Register(api, huma.Operation{
+		OperationID:   "sign-out-user",
+		Method:        http.MethodPost,
+		Path:          "/auth/signout",
+		Summary:       "Sign Out User",
+		Description:   "Sign out a user",
+		Tags:          []string{"Auth"},
+		DefaultStatus: http.StatusOK,
+	}, authHandler.SignOutUser)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {

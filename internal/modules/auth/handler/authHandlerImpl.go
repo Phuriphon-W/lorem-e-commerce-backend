@@ -120,3 +120,19 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 
 	return res, nil
 }
+
+func (a *authHandlerImpl) SignOutUser(ctx context.Context, input *dto.SignOutUserInputDto) (*dto.SignOutUserOutputDto, error) {
+	cookie := http.Cookie{
+		Name:     "authToken",
+		Value:    "", // Clear the value
+		Path:     "/",
+		HttpOnly: true,
+		MaxAge:   -1, // -1 means "delete immediately"
+	}
+
+	res := &dto.SignOutUserOutputDto{
+		AuthToken: cookie,
+	}
+
+	return res, nil
+}
