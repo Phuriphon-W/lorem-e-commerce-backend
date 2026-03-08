@@ -8,6 +8,7 @@ import (
 	objectstorage "lorem-backend/internal/modules/objectStorage"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
+	"sync"
 )
 
 type productHandlerImpl struct {
@@ -62,35 +63,52 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 
 func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
 	products, total, err := p.productRepository.GetProducts(ctx, input.PageNumber, input.PageSize)
-
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve products: %v", err)
+		return nil, fmt.Errorf("failed to retrieve products: %w", err)
 	}
 
 	results := make([]dto.ProductResponse, len(products))
-	for i, p := range products {
-		results[i] = dto.ProductResponse{
-			ID: p.ID,
-			ProductDtoBase: dto.ProductDtoBase{
-				Name:        p.Name,
-				Description: p.Description,
-				Price:       p.Price,
-				Available:   p.Available,
-				ImageURL:    p.ImageObjKey, // TODO: Generate presigned URL
-			},
-			Category: catDto.CategoryDto{
-				ID:   p.CategoryID,
-				Name: p.Category.Name,
-			},
-		}
+
+	// Use a WaitGroup to run S3 calls in parallel
+	var wg sync.WaitGroup
+
+	for i, prod := range products {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			// Generate URL (Parallel)
+			imgUrl, err := p.s3Repository.GeneratePresignUrl(ctx, prod.ImageObjKey)
+			if err != nil {
+				fmt.Printf("Error generating URL for %s: %v\n", prod.ID, err)
+				imgUrl = ""
+			}
+
+			// Map to DTO
+			results[i] = dto.ProductResponse{
+				ID: prod.ID,
+				ProductDtoBase: dto.ProductDtoBase{
+					Name:        prod.Name,
+					Description: prod.Description,
+					Price:       prod.Price,
+					Available:   prod.Available,
+					ImageURL:    imgUrl,
+				},
+				Category: catDto.CategoryDto{
+					ID:   prod.CategoryID,
+					Name: prod.Category.Name,
+				},
+			}
+		}()
 	}
 
-	res := &dto.GetProductsOutputDto{
+	wg.Wait() // Wait for all S3 calls to finish
+
+	return &dto.GetProductsOutputDto{
 		Body: dto.GetProductsOutputDtoBody{
 			Products: results,
 			Total:    total,
 		},
-	}
-
-	return res, nil
+	}, nil
 }

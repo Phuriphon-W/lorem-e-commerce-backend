@@ -44,3 +44,16 @@ func (s *s3Repository) UploadFile(ctx context.Context, prefixKey string, file mu
 
 	return imageKey, nil
 }
+
+func (s *s3Repository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
+	req, err := s.PresignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.BucketName),
+		Key:    aws.String(objKey),
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	return req.URL, nil
+}
