@@ -46,9 +46,13 @@ func (s *s3Repository) UploadFile(ctx context.Context, prefixKey string, file mu
 }
 
 func (s *s3Repository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
+	expiresIn := 15 * time.Minute
+
 	req, err := s.PresignClient.PresignGetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.BucketName),
 		Key:    aws.String(objKey),
+	}, func(opts *s3.PresignOptions) {
+		opts.Expires = expiresIn
 	})
 
 	if err != nil {

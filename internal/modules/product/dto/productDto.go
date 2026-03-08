@@ -57,7 +57,7 @@ type (
 	}
 )
 
-// Get Product
+// Get Products
 type (
 	GetProductsInputDto struct {
 		PageNumber uint64 `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
@@ -71,5 +71,16 @@ type (
 
 	GetProductsOutputDto struct {
 		Body GetProductsOutputDtoBody
+	}
+)
+
+// Get Product By ID
+type (
+	GetProductByIdInputDto struct {
+		ID uuid.UUID `path:"id" required:"true" doc:"Product ID"`
+	}
+
+	GetProductByIdOutputDto struct {
+		Body ProductResponse
 	}
 )

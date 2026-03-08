@@ -112,3 +112,36 @@ func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProd
 		},
 	}, nil
 }
+
+func (p *productHandlerImpl) GetProductById(ctx context.Context, input *dto.GetProductByIdInputDto) (*dto.GetProductByIdOutputDto, error) {
+	product, err := p.productRepository.GetProductByID(ctx, input.ID)
+
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving product with ID: %v, %v", input.ID, err)
+	}
+
+	imgUrl, err := p.s3Repository.GeneratePresignUrl(ctx, product.ImageObjKey)
+	if err != nil {
+		fmt.Printf("Error generating URL for %s: %v\n", product.ID, err)
+		imgUrl = ""
+	}
+
+	res := &dto.GetProductByIdOutputDto{
+		Body: dto.ProductResponse{
+			ID: product.ID,
+			ProductDtoBase: dto.ProductDtoBase{
+				Name:        product.Name,
+				Description: product.Description,
+				Price:       product.Price,
+				Available:   product.Available,
+				ImageURL:    imgUrl,
+			},
+			Category: catDto.CategoryDto{
+				ID:   product.CategoryID,
+				Name: product.Category.Name,
+			},
+		},
+	}
+
+	return res, nil
+}
