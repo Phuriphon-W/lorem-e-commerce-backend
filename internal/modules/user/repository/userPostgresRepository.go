@@ -18,32 +18,6 @@ func NewUserPostgresRepository(db database.Database) UserRepository {
 	}
 }
 
-func (r *userPostgresRepository) CreateUser(ctx context.Context, user *database.User) (uuid.UUID, error) {
-	result := gorm.WithResult()
-
-	err := r.db.GetDb().Transaction(func(tx *gorm.DB) error {
-
-		// Create User
-		if err := gorm.G[database.User](tx, result).Create(ctx, user); err != nil {
-			return err // This triggers a rollback
-		}
-
-		// Create Cart
-		cart := &database.Cart{UserID: user.ID}
-		if err := gorm.G[database.Cart](tx).Create(ctx, cart); err != nil {
-			return err // This triggers a rollback
-		}
-
-		return nil // This triggers a commit
-	})
-
-	if err != nil {
-		return uuid.Nil, err
-	}
-
-	return user.ID, nil
-}
-
 func (r *userPostgresRepository) GetUsers(ctx context.Context) ([]database.User, error) {
 	users, err := gorm.G[database.User](r.db.GetDb()).Find(ctx)
 

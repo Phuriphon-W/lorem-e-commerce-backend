@@ -7,7 +7,8 @@ import (
 )
 
 func main() {
-	cfg := config.LoadConfig()
+	config.LoadConfig()
+	cfg := config.GlobalConfig
 	db := database.NewPostgresDb(cfg)
 	if err := database.SeedDatabase(db.GetDb()); err != nil {
 		log.Fatal(err)

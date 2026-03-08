@@ -25,7 +25,9 @@ type Config struct {
 	AwsRegion    string
 }
 
-func LoadConfig() *Config {
+var GlobalConfig *Config
+
+func LoadConfig() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -43,7 +45,7 @@ func LoadConfig() *Config {
 		log.Fatal("Invalid DB_PORT value in .env file")
 	}
 
-	config := &Config{
+	GlobalConfig = &Config{
 		Port:         port,
 		DBHost:       getEnv("DB_HOST", "localhost"),
 		DBUser:       getEnv("DB_USER", "admin"),
@@ -59,8 +61,6 @@ func LoadConfig() *Config {
 		AwsSecretKey: getEnv("AWS_SECRET_KEY", ""),
 		AwsRegion:    getEnv("AWS_REGION", "us-east-1"),
 	}
-
-	return config
 }
 
 func getEnv(key, defaultValue string) string {
