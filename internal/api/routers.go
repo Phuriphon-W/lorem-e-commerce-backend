@@ -1,22 +1,25 @@
 package api
 
 import (
+	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
+	objectstorage "lorem-backend/internal/modules/objectStorage"
 	productHandler "lorem-backend/internal/modules/product/handler"
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
 	userRepo "lorem-backend/internal/modules/user/repository"
 	"net/http"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humaecho"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-func NewRouter(db database.Database) *echo.Echo {
+func NewRouter(db database.Database, cfg *config.Config, s3 *s3.Client) *echo.Echo {
 	router := echo.New()
 	router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"*"},
@@ -29,7 +32,7 @@ func NewRouter(db database.Database) *echo.Echo {
 	humaConfig := createHumaConfig()
 	api := humaecho.New(router, humaConfig)
 
-	registerRoutes(api, db)
+	registerRoutes(api, db, cfg, s3)
 
 	return router
 }
@@ -43,10 +46,13 @@ func createHumaConfig() huma.Config {
 	return humaConfig
 }
 
-func registerRoutes(api huma.API, db database.Database) {
+func registerRoutes(api huma.API, db database.Database, cfg *config.Config, s3 *s3.Client) {
+	// Init object storage repository
+	s3Repo := objectstorage.NewS3Repository(s3, cfg)
+
 	registerUserRoute(api, db)
 	registerCategoryRoute(api, db)
-	registerProductRoute(api, db)
+	registerProductRoute(api, db, s3Repo)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {
@@ -116,10 +122,10 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 	}, categoryHandler.GetCategories)
 }
 
-func registerProductRoute(api huma.API, db database.Database) {
+func registerProductRoute(api huma.API, db database.Database, obj objectstorage.ObjectStorage) {
 	// Init product repo and handler
 	productRepo := productRepo.NewProductPostgresRepository(db)
-	productHandler := productHandler.NewProductHandlerImpl(productRepo)
+	productHandler := productHandler.NewProductHandlerImpl(productRepo, obj)
 
 	// POST /product
 	huma.Register(api, huma.Operation{

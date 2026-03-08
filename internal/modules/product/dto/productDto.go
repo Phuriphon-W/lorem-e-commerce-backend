@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 
 	catDto "lorem-backend/internal/modules/category/dto"
@@ -8,10 +9,18 @@ import (
 
 type ProductDtoBase struct {
 	Name        string  `json:"name" required:"true" minLength:"1" doc:"Product name" example:"Shirt"`
-	Description *string `json:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
+	Description string  `json:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
 	Price       float32 `json:"price" required:"true" minimum:"0.01" doc:"Price" example:"19.99"`
 	Available   uint    `json:"available" required:"true" minimum:"0" doc:"Available stock quantity" example:"100"`
 	ImageURL    string  `json:"image_url" required:"true" doc:"Image URL" example:"https://example.com/images/shirt.jpg"`
+}
+
+type ProductFormDto struct {
+	Name        string        `form:"name" required:"true" minLength:"1" doc:"Product name" example:"Shirt"`
+	Description string        `form:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
+	Price       float32       `form:"price" required:"true" minimum:"0.01" doc:"Price" example:"19.99"`
+	Available   uint          `form:"available" required:"true" minimum:"0" doc:"Available stock quantity" example:"100"`
+	ImageFile   huma.FormFile `form:"image_file" required:"true" doc:"Image file of the product"`
 }
 
 // Product Response (with ID)
@@ -24,12 +33,19 @@ type ProductResponse struct {
 // Create Product
 type (
 	CreateProductInputDtoBody struct {
-		ProductDtoBase
-		CategoryId uuid.UUID `json:"categoryId" required:"true" doc:"ID of the product category" example:"fdc93985-b4fd-40d3-ad6c-3fb94c6ec8c7"`
+		ProductFormDto
+		CategoryId uuid.UUID `form:"categoryId" required:"true" doc:"ID of the product category" example:"fdc93985-b4fd-40d3-ad6c-3fb94c6ec8c7"`
 	}
 
 	CreateProductInputDto struct {
-		Body CreateProductInputDtoBody
+		RawBody huma.MultipartFormFiles[struct {
+			Name        string        `form:"name" required:"true" minLength:"1" doc:"Product name" example:"Shirt"`
+			Description string        `form:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
+			Price       float32       `form:"price" required:"true" minimum:"0.01" doc:"Price" example:"19.99"`
+			Available   uint          `form:"available" required:"true" minimum:"0" doc:"Available stock quantity" example:"100"`
+			ImageFile   huma.FormFile `form:"image_file" required:"true" doc:"Image file of the product"`
+			CategoryId  uuid.UUID     `form:"categoryId" required:"true" doc:"ID of the product category" example:"fdc93985-b4fd-40d3-ad6c-3fb94c6ec8c7"`
+		}]
 	}
 
 	CreatedProductOutputDtoBody struct {

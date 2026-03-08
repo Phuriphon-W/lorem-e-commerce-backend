@@ -27,17 +27,15 @@ func main() {
 	defer db.DisconnectDB()
 
 	// Connect to S3
-	s3Client, err := database.ConnectS3(cfg.S3Endpoint)
+	s3Client, err := database.ConnectS3(cfg.S3Endpoint, cfg.AwsRegion)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to connect to S3: %v", err))
 	}
 
-	fmt.Println(s3Client)
-
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
 
 		// Create a new router and register APIs (from internal/api)
-		router := api.NewRouter(db)
+		router := api.NewRouter(db, cfg, s3Client)
 
 		hooks.OnStart(func() {
 			port := cfg.Port
