@@ -5,28 +5,45 @@ import (
 	"fmt"
 	"lorem-backend/internal/database"
 	catDto "lorem-backend/internal/modules/category/dto"
+	objectstorage "lorem-backend/internal/modules/objectStorage"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
 )
 
 type productHandlerImpl struct {
 	productRepository repository.ProductRepository
+	s3Repository      objectstorage.ObjectStorage
 }
 
-func NewProductHandlerImpl(repo repository.ProductRepository) ProductHandler {
+func NewProductHandlerImpl(repo repository.ProductRepository, obj objectstorage.ObjectStorage) ProductHandler {
 	return &productHandlerImpl{
 		productRepository: repo,
+		s3Repository:      obj,
 	}
 }
 
 func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.CreateProductInputDto) (*dto.CreatedProductOutputDto, error) {
+	formData := input.RawBody.Data()
+
+	objKey, err := p.s3Repository.UploadFile(
+		ctx,
+		"product-images",
+		formData.ImageFile,
+		formData.ImageFile.Size,
+		formData.ImageFile.ContentType,
+		formData.ImageFile.Filename,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Error Uploading Product Image to Object Storage: %v", err)
+	}
+
 	product := &database.Product{
-		Name:        input.Body.Name,
-		Description: input.Body.Description,
-		Price:       input.Body.Price,
-		Available:   input.Body.Available,
-		ImageURL:    input.Body.ImageURL,
-		CategoryID:  input.Body.CategoryId,
+		Name:        formData.Name,
+		Description: formData.Description,
+		Price:       formData.Price,
+		Available:   formData.Available,
+		ImageObjKey: objKey,
+		CategoryID:  formData.CategoryId,
 	}
 
 	pid, err := p.productRepository.CreateProduct(ctx, product)
@@ -59,7 +76,7 @@ func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProd
 				Description: p.Description,
 				Price:       p.Price,
 				Available:   p.Available,
-				ImageURL:    p.ImageURL,
+				ImageURL:    p.ImageObjKey, // TODO: Generate presigned URL
 			},
 			Category: catDto.CategoryDto{
 				ID:   p.CategoryID,

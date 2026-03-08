@@ -9,16 +9,20 @@ import (
 )
 
 type Config struct {
-	Port        int
-	DBHost      string
-	DBUser      string
-	DBPassword  string
-	DBName      string
-	DBPort      int
-	JWTSecret   string
-	JWTExpire   string
-	FrontendURL string
-	S3Endpoint  string
+	Port         int
+	DBHost       string
+	DBUser       string
+	DBPassword   string
+	DBName       string
+	DBPort       int
+	JWTSecret    string
+	JWTExpire    string
+	FrontendURL  string
+	S3Endpoint   string
+	BucketName   string
+	AwsAccessKey string
+	AwsSecretKey string
+	AwsRegion    string
 }
 
 func LoadConfig() *Config {
@@ -40,16 +44,20 @@ func LoadConfig() *Config {
 	}
 
 	config := &Config{
-		Port:        port,
-		DBHost:      getEnv("DB_HOST", "localhost"),
-		DBUser:      getEnv("DB_USER", "admin"),
-		DBPassword:  getEnv("DB_PASSWORD", "password"),
-		DBName:      getEnv("DB_NAME", "lorem"),
-		DBPort:      dbPort,
-		JWTSecret:   getEnv("JWT_SECRET", ""),
-		JWTExpire:   getEnv("JWT_EXPIRE", "24h"),
-		FrontendURL: getEnv("FRONTEND_URL", "localhost:3000"),
-		S3Endpoint:  getEnv("S3_URL", "http://localhost:8333"),
+		Port:         port,
+		DBHost:       getEnv("DB_HOST", "localhost"),
+		DBUser:       getEnv("DB_USER", "admin"),
+		DBPassword:   getEnv("DB_PASSWORD", "password"),
+		DBName:       getEnv("DB_NAME", "lorem"),
+		DBPort:       dbPort,
+		JWTSecret:    getEnv("JWT_SECRET", ""),
+		JWTExpire:    getEnv("JWT_EXPIRE", "24h"),
+		FrontendURL:  getEnv("FRONTEND_URL", "localhost:3000"),
+		S3Endpoint:   getEnv("S3_URL", "http://localhost:8333"),
+		BucketName:   getEnv("BUCKET_NAME", ""),
+		AwsAccessKey: getEnv("AWS_ACCESS_KEY", ""),
+		AwsSecretKey: getEnv("AWS_SECRET_KEY", ""),
+		AwsRegion:    getEnv("AWS_REGION", "us-east-1"),
 	}
 
 	return config
