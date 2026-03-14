@@ -69,7 +69,6 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 		Body: dto.RegisterUserOutputDtoBody{
 			ID:       userID,
 			Username: username,
-			JwtToken: token,
 		},
 	}
 
@@ -114,7 +113,6 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 		Body: dto.SignInUserOutputDtoBody{
 			ID:       data.ID,
 			Username: data.Username,
-			JwtToken: token,
 		},
 	}
 

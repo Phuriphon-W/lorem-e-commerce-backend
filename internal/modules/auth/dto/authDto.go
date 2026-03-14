@@ -21,7 +21,6 @@ type (
 	RegisterUserOutputDtoBody struct {
 		ID       uuid.UUID `json:"id" doc:"Created User ID"`
 		Username string    `json:"username" required:"true" maxLength:"20" doc:"Username" example:"user123"`
-		JwtToken string    `json:"jwtToken" doc:"JWT Access Token for the session"`
 	}
 
 	RegisterUserOutputDto struct {
@@ -42,7 +41,6 @@ type (
 	SignInUserOutputDtoBody struct {
 		ID       uuid.UUID `json:"id" doc:"Created User ID"`
 		Username string    `json:"username" required:"true" maxLength:"20" doc:"Username" example:"user123"`
-		JwtToken string    `json:"jwtToken" doc:"JWT Access Token for the session"`
 	}
 
 	SignInUserOutputDto struct {
