@@ -25,10 +25,10 @@ func VerifyToken(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
 
 		userID := claims["id"].(string)
 		newCtx := context.WithValue(ctx.Context(), "userID", userID)
-		huma.WithContext(ctx, newCtx)
+		newHumaCtx := huma.WithContext(ctx, newCtx)
 
 		// Continue to the next function
-		next(ctx)
+		next(newHumaCtx)
 	}
 }
 
