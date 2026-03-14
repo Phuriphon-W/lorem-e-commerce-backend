@@ -99,7 +99,7 @@ func registerAuthRoute(api huma.API, db database.Database) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "register-user",
 		Method:        http.MethodPost,
-		Path:          "/auth/register",
+		Path:          "/register",
 		Summary:       "Register User",
 		Description:   "Register a new user",
 		Tags:          []string{"Auth"},
@@ -110,7 +110,7 @@ func registerAuthRoute(api huma.API, db database.Database) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "sign-in-user",
 		Method:        http.MethodPost,
-		Path:          "/auth/signin",
+		Path:          "/signin",
 		Summary:       "Sign In User",
 		Description:   "Sign in a user",
 		Tags:          []string{"Auth"},
@@ -121,7 +121,7 @@ func registerAuthRoute(api huma.API, db database.Database) {
 	huma.Register(api, huma.Operation{
 		OperationID:   "sign-out-user",
 		Method:        http.MethodPost,
-		Path:          "/auth/signout",
+		Path:          "/signout",
 		Summary:       "Sign Out User",
 		Description:   "Sign out a user",
 		Tags:          []string{"Auth"},
