@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	authHandler "lorem-backend/internal/modules/auth/handler"
 	authRepo "lorem-backend/internal/modules/auth/repository"
@@ -27,9 +28,10 @@ import (
 func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 	router := echo.New()
 	router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"*"},
-		AllowHeaders: []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowOrigins:     []string{config.GlobalConfig.FrontendURL},
+		AllowHeaders:     []string{echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept},
+		AllowMethods:     []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowCredentials: true,
 	}))
 	router.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
 		LogStatus: true,
