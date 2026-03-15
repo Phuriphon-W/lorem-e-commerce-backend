@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/auth/dto"
@@ -29,9 +28,15 @@ func NewAuthHandlerImpl(authRepo repository.AuthRepository) AuthHandler {
 }
 
 func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterUserInputDto) (*dto.RegisterUserOutputDto, error) {
+	// Check if user with this email already exist
+	userData, err := a.authRepository.GetUserByEmail(ctx, input.Body.Email)
+	if userData != nil {
+		return nil, huma.Error409Conflict("An account with this email address already exists.")
+	}
+
 	hashed, err := utils.HashPassword(input.Body.Password)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to hash password: %v", err)
+		return nil, huma.Error500InternalServerError("Failed to hash password", err)
 	}
 
 	data := &database.User{
@@ -44,7 +49,7 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 
 	userID, username, err := a.authRepository.RegisterUser(ctx, data)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create user: %v", err)
+		return nil, huma.Error500InternalServerError("Failed to create user", err)
 	}
 
 	duration, err := time.ParseDuration(a.jwtExpire)
@@ -55,7 +60,7 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 
 	token, err := utils.GenerateJWT(userID, a.jwtSecret, duration)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate session token: %v", err)
+		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
 
 	res := &dto.RegisterUserOutputDto{
@@ -99,7 +104,7 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 	// Generate JWT
 	token, err := utils.GenerateJWT(data.ID, a.jwtSecret, duration)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to generate session token: %v", err)
+		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
 
 	res := &dto.SignInUserOutputDto{

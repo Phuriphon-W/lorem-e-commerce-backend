@@ -9,6 +9,8 @@ import (
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
 	"sync"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 type productHandlerImpl struct {
@@ -35,7 +37,7 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 		formData.ImageFile.Filename,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Error Uploading Product Image to Object Storage: %v", err)
+		return nil, huma.Error400BadRequest("Error Uploading Product Image to Object Storage", err)
 	}
 
 	product := &database.Product{
@@ -49,7 +51,7 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 
 	pid, err := p.productRepository.CreateProduct(ctx, product)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create product: %v", err)
+		return nil, huma.Error500InternalServerError("Failed to create product", err)
 	}
 
 	res := &dto.CreatedProductOutputDto{
@@ -64,7 +66,7 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
 	products, total, err := p.productRepository.GetProducts(ctx, input.PageNumber, input.PageSize)
 	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve products: %w", err)
+		return nil, huma.Error404NotFound("Failed to retrieve products", err)
 	}
 
 	results := make([]dto.ProductResponse, len(products))
@@ -117,7 +119,7 @@ func (p *productHandlerImpl) GetProductById(ctx context.Context, input *dto.GetP
 	product, err := p.productRepository.GetProductByID(ctx, input.ID)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving product with ID: %v, %v", input.ID, err)
+		return nil, huma.Error404NotFound("Error retrieving product", err)
 	}
 
 	imgUrl, err := p.s3Repository.GeneratePresignUrl(ctx, product.ImageObjKey)

@@ -6,6 +6,7 @@ import (
 	"lorem-backend/internal/modules/user/dto"
 	"lorem-backend/internal/modules/user/repository"
 
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 )
 
@@ -25,7 +26,7 @@ func (u *userHandlerImpl) GetUserById(ctx context.Context, input *dto.GetUserByI
 	user, err := u.userRepository.GetUserByID(ctx, input.ID)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve user with ID: %v\nError: %v", input.ID, err)
+		return nil, huma.Error404NotFound("User Not Found", fmt.Errorf("Failed to retrieve user with ID: %v, Error: %v", input.ID, err))
 	}
 
 	res := &dto.GetUserByIdOutputDto{
@@ -46,18 +47,18 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 
 	userIDStr, ok := val.(string)
 	if !ok {
-		return nil, fmt.Errorf("invalid or missing user ID in context")
+		return nil, huma.Error400BadRequest("invalid or missing user ID in context")
 	}
 
 	// Parse string to uuid.UUID type
 	parsedID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid UUID format: %v", err)
+		return nil, huma.Error400BadRequest("Invalid UUID format", err)
 	}
 
 	user, err := u.userRepository.GetUserByID(ctx, parsedID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get current user data: %v", err)
+		return nil, huma.Error404NotFound("Failed to get current user data", err)
 	}
 
 	res := &dto.GetMeOutputDto{
