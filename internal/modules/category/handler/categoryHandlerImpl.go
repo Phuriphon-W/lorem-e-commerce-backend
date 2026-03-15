@@ -2,10 +2,11 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/category/dto"
 	"lorem-backend/internal/modules/category/repository"
+
+	"github.com/danielgtaylor/huma/v2"
 )
 
 type categoryHandlerImpl struct {
@@ -25,7 +26,7 @@ func (c *categoryHandlerImpl) CreateCategory(ctx context.Context, input *dto.Cre
 
 	categoryId, err := c.categoryRepository.CreateCategory(ctx, category)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create category: %v", err)
+		return nil, huma.Error400BadRequest("Failed to create category", err)
 	}
 
 	res := &dto.CreateCategoryOutputDto{
@@ -41,7 +42,7 @@ func (c *categoryHandlerImpl) GetCategoryById(ctx context.Context, input *dto.Ge
 	category, err := c.categoryRepository.GetCategoryByID(ctx, input.ID)
 
 	if err != nil {
-		return nil, fmt.Errorf("Error retrieving category with ID: %v", input.ID)
+		return nil, huma.Error404NotFound("Error retrieving category", err)
 	}
 
 	res := &dto.GetCategoryByIdOutputDto{
@@ -58,7 +59,7 @@ func (c *categoryHandlerImpl) GetCategories(ctx context.Context, _ *struct{}) (*
 	categories, err := c.categoryRepository.GetCategories(ctx)
 
 	if err != nil {
-		return nil, fmt.Errorf("Failed to retrieve categories: %v", err)
+		return nil, huma.Error404NotFound("Failed to retrieve categories", err)
 	}
 
 	results := make([]dto.CategoryDto, len(categories))
