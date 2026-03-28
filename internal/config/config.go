@@ -2,70 +2,55 @@ package config
 
 import (
 	"log"
-	"os"
-	"strconv"
 
-	"github.com/joho/godotenv"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Port         int
-	DBHost       string
-	DBUser       string
-	DBPassword   string
-	DBName       string
-	DBPort       int
-	JWTSecret    string
-	JWTExpire    string
-	FrontendURL  string
-	S3Endpoint   string
-	BucketName   string
-	AwsAccessKey string
-	AwsSecretKey string
-	AwsRegion    string
+	Port         int    `mapstructure:"PORT"`
+	DBHost       string `mapstructure:"DB_HOST"`
+	DBUser       string `mapstructure:"DB_USER"`
+	DBPassword   string `mapstructure:"DB_PASSWORD"`
+	DBName       string `mapstructure:"DB_NAME"`
+	DBPort       int    `mapstructure:"DB_PORT"`
+	JWTSecret    string `mapstructure:"JWT_SECRET"`
+	JWTExpire    string `mapstructure:"JWT_EXPIRE"`
+	FrontendURL  string `mapstructure:"FRONTEND_URL"`
+	S3Endpoint   string `mapstructure:"S3_URL"`
+	BucketName   string `mapstructure:"BUCKET_NAME"`
+	AwsAccessKey string `mapstructure:"AWS_ACCESS_KEY"`
+	AwsSecretKey string `mapstructure:"AWS_SECRET_KEY"`
+	AwsRegion    string `mapstructure:"AWS_REGION"`
 }
 
 var GlobalConfig *Config
 
 func LoadConfig() {
-	err := godotenv.Load()
+	// Setup Viper to read the .env file
+	viper.SetConfigFile(".env")
+	viper.AutomaticEnv() // Read from system environment variables if they exist
+
+	// Set Default Values (Used if not found in .env)
+	viper.SetDefault("PORT", 5000)
+	viper.SetDefault("DB_HOST", "localhost")
+	viper.SetDefault("DB_USER", "admin")
+	viper.SetDefault("DB_PASSWORD", "password")
+	viper.SetDefault("DB_NAME", "lorem")
+	viper.SetDefault("DB_PORT", 5433)
+	viper.SetDefault("JWT_EXPIRE", "24h")
+	viper.SetDefault("FRONTEND_URL", "http://localhost:3000")
+	viper.SetDefault("AWS_REGION", "us-east-1")
+
+	// Read the file
+	if err := viper.ReadInConfig(); err != nil {
+		log.Printf("Warning: No .env file found, using defaults and system env")
+	}
+
+	// Unmarshal the config into our struct
+	err := viper.Unmarshal(&GlobalConfig)
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatalf("Unable to decode into struct, %v", err)
 	}
 
-	portStr := getEnv("PORT", "5000")
-	port, err := strconv.Atoi(portStr)
-	if err != nil {
-		log.Fatal("Invalid PORT value in .env file")
-	}
-
-	dbPortStr := getEnv("DB_PORT", "5432")
-	dbPort, err := strconv.Atoi(dbPortStr)
-	if err != nil {
-		log.Fatal("Invalid DB_PORT value in .env file")
-	}
-
-	GlobalConfig = &Config{
-		Port:         port,
-		DBHost:       getEnv("DB_HOST", "localhost"),
-		DBUser:       getEnv("DB_USER", "admin"),
-		DBPassword:   getEnv("DB_PASSWORD", "password"),
-		DBName:       getEnv("DB_NAME", "lorem"),
-		DBPort:       dbPort,
-		JWTSecret:    getEnv("JWT_SECRET", ""),
-		JWTExpire:    getEnv("JWT_EXPIRE", "24h"),
-		FrontendURL:  getEnv("FRONTEND_URL", "localhost:3000"),
-		S3Endpoint:   getEnv("S3_URL", "http://localhost:8333"),
-		BucketName:   getEnv("BUCKET_NAME", ""),
-		AwsAccessKey: getEnv("AWS_ACCESS_KEY", ""),
-		AwsSecretKey: getEnv("AWS_SECRET_KEY", ""),
-		AwsRegion:    getEnv("AWS_REGION", "us-east-1"),
-	}
-}
-
-func getEnv(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return defaultValue
+	log.Println("Config loaded successfully")
 }
