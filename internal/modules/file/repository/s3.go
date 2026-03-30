@@ -1,8 +1,7 @@
-package objectstorage
+package repository
 
 import (
 	"context"
-	"fmt"
 	"lorem-backend/internal/config"
 	"mime/multipart"
 	"time"
@@ -27,12 +26,10 @@ func NewS3Repository(s3Client *s3.Client) ObjectStorage {
 	}
 }
 
-func (s *s3Repository) UploadFile(ctx context.Context, prefixKey string, file multipart.File, size int64, contentType, fileName string) (string, error) {
-	imageKey := fmt.Sprintf("%v/%v-%v", prefixKey, time.Now().Unix(), fileName)
-
+func (s *s3Repository) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
 	_, err := s.Client.PutObject(ctx, &s3.PutObjectInput{
 		Bucket:        aws.String(s.BucketName),
-		Key:           aws.String(imageKey),
+		Key:           aws.String(objKey),
 		Body:          file,
 		ContentLength: aws.Int64(size),
 		ContentType:   aws.String(contentType),
@@ -42,7 +39,7 @@ func (s *s3Repository) UploadFile(ctx context.Context, prefixKey string, file mu
 		return "", err
 	}
 
-	return imageKey, nil
+	return objKey, nil
 }
 
 func (s *s3Repository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {

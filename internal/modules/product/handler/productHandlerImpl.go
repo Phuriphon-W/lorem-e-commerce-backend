@@ -5,36 +5,37 @@ import (
 	"fmt"
 	"lorem-backend/internal/database"
 	catDto "lorem-backend/internal/modules/category/dto"
-	objectstorage "lorem-backend/internal/modules/objectStorage"
+	file "lorem-backend/internal/modules/file/repository"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
 	"sync"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type productHandlerImpl struct {
 	productRepository repository.ProductRepository
-	s3Repository      objectstorage.ObjectStorage
+	fileRepository    file.FileRepository
 }
 
-func NewProductHandlerImpl(repo repository.ProductRepository, obj objectstorage.ObjectStorage) ProductHandler {
+func NewProductHandlerImpl(repo repository.ProductRepository, fileRepo file.FileRepository) ProductHandler {
 	return &productHandlerImpl{
 		productRepository: repo,
-		s3Repository:      obj,
+		fileRepository:    fileRepo,
 	}
 }
 
 func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.CreateProductInputDto) (*dto.CreatedProductOutputDto, error) {
 	formData := input.RawBody.Data()
+	putKey := fmt.Sprintf("product-images/%v-%v", time.Now().Unix(), formData.ImageFile.Filename)
 
-	objKey, err := p.s3Repository.UploadFile(
+	objKey, err := p.fileRepository.UploadFile(
 		ctx,
-		"product-images",
+		putKey,
 		formData.ImageFile,
 		formData.ImageFile.Size,
 		formData.ImageFile.ContentType,
-		formData.ImageFile.Filename,
 	)
 	if err != nil {
 		return nil, huma.Error400BadRequest("Error Uploading Product Image to Object Storage", err)
@@ -81,7 +82,7 @@ func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProd
 			defer wg.Done()
 
 			// Generate URL (Parallel)
-			imgUrl, err := p.s3Repository.GeneratePresignUrl(ctx, prod.ImageObjKey)
+			imgUrl, err := p.fileRepository.GeneratePresignUrl(ctx, prod.ImageObjKey)
 			if err != nil {
 				fmt.Printf("Error generating URL for %s: %v\n", prod.ID, err)
 				imgUrl = ""
@@ -122,7 +123,7 @@ func (p *productHandlerImpl) GetProductById(ctx context.Context, input *dto.GetP
 		return nil, huma.Error404NotFound("Error retrieving product", err)
 	}
 
-	imgUrl, err := p.s3Repository.GeneratePresignUrl(ctx, product.ImageObjKey)
+	imgUrl, err := p.fileRepository.GeneratePresignUrl(ctx, product.ImageObjKey)
 	if err != nil {
 		fmt.Printf("Error generating URL for %s: %v\n", product.ID, err)
 		imgUrl = ""

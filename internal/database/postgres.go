@@ -32,6 +32,7 @@ func NewPostgresDb(conf *config.Config) Database {
 		&Order{},
 		&OrderItem{},
 		&Payment{},
+		&File{},
 	); err != nil {
 		panic("Failed to migrate database")
 	}

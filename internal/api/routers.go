@@ -8,7 +8,8 @@ import (
 	authRepo "lorem-backend/internal/modules/auth/repository"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
-	objectstorage "lorem-backend/internal/modules/objectStorage"
+	fileHandler "lorem-backend/internal/modules/file/handler"
+	fileRepo "lorem-backend/internal/modules/file/repository"
 	productHandler "lorem-backend/internal/modules/product/handler"
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
@@ -85,11 +86,15 @@ func createHumaConfig() huma.Config {
 
 func registerRoutes(api huma.API, db database.Database, s3 *s3.Client) {
 	// Init object storage repository
-	s3Repo := objectstorage.NewS3Repository(s3)
+	s3Repository := fileRepo.NewS3Repository(s3)
+
+	// Init file metadata repository
+	fileRepository := fileRepo.NewFileMetaPostgresRepository(db, s3Repository)
 
 	registerUserRoute(api, db)
 	registerCategoryRoute(api, db)
-	registerProductRoute(api, db, s3Repo)
+	registerProductRoute(api, db, fileRepository)
+	registerFileRoute(api, fileRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -198,10 +203,10 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 	}, categoryHandler.GetCategories)
 }
 
-func registerProductRoute(api huma.API, db database.Database, obj objectstorage.ObjectStorage) {
+func registerProductRoute(api huma.API, db database.Database, file fileRepo.FileRepository) {
 	// Init product repo and handler
 	productRepo := productRepo.NewProductPostgresRepository(db)
-	productHandler := productHandler.NewProductHandlerImpl(productRepo, obj)
+	productHandler := productHandler.NewProductHandlerImpl(productRepo, file)
 
 	// POST /product
 	huma.Register(api, huma.Operation{
@@ -235,4 +240,53 @@ func registerProductRoute(api huma.API, db database.Database, obj objectstorage.
 		Tags:          []string{"Product"},
 		DefaultStatus: http.StatusOK,
 	}, productHandler.GetProductById)
+}
+
+func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
+	// Init file handler from repo
+	fileHandler := fileHandler.NewFileHandlerImpl(fileRepository)
+
+	// POST /file/upload
+	huma.Register(api, huma.Operation{
+		OperationID:   "upload-file",
+		Method:        http.MethodPost,
+		Path:          "/file/upload",
+		Summary:       "Upload File",
+		Description:   "Upload a file to Object Storage",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusCreated,
+	}, fileHandler.UploadFile)
+
+	// GET /file/download/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "download-file",
+		Method:        http.MethodGet,
+		Path:          "/file/download/{id}",
+		Summary:       "Download File",
+		Description:   "Download a file from Object Storage",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusOK,
+	}, fileHandler.DownLoadFile)
+
+	// GET /file/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-file-metadata",
+		Method:        http.MethodGet,
+		Path:          "/file/{id}",
+		Summary:       "Get File Metadata",
+		Description:   "Get a file metadata from Object Storage",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusOK,
+	}, fileHandler.GetFileMetaByID)
+
+	// GET /file
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-all-files-metadata",
+		Method:        http.MethodGet,
+		Path:          "/file",
+		Summary:       "Get Files Metadata",
+		Description:   "Get all files metadata from Object Storage",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusOK,
+	}, fileHandler.GetAllFilesMetadata)
 }
