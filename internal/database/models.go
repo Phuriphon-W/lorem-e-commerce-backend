@@ -114,3 +114,13 @@ type Payment struct {
 	PaymentAmount float64 `gorm:"type:decimal(10,2);not null;check:payment_amount >= 0"`
 	PaymentStatus string  `gorm:"type:varchar(20);not null"`
 }
+
+// File Metadata
+type File struct {
+	Base
+	OriginalName string `gorm:"type:varchar(255);not null"`
+	Name         string `gorm:"type:varchar(255);not null"`
+	Size         int64
+	ContentType  string `gorm:"type:text"`
+	ObjectKey    string `gorm:"type:varchar(255);not null"`
+}

@@ -6,12 +6,19 @@ import (
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
 	sdkConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func ConnectS3(s3Endpoint string, region string) (*s3.Client, error) {
-	sdkConfig, err := sdkConfig.LoadDefaultConfig(context.TODO())
+func ConnectS3(s3Endpoint, region, accessKey, secretKey string) (*s3.Client, error) {
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
+
+	sdkConfig, err := sdkConfig.LoadDefaultConfig(context.TODO(),
+		config.WithRegion(region),
+		config.WithCredentialsProvider(creds),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("unable to load SDK config: %w", err)
 	}
