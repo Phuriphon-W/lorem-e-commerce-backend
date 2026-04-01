@@ -257,6 +257,17 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 		DefaultStatus: http.StatusCreated,
 	}, fileHandler.UploadFile)
 
+	// POST /file/upload/static
+	huma.Register(api, huma.Operation{
+		OperationID:   "upload-static-file",
+		Method:        http.MethodPost,
+		Path:          "/file/upload/static",
+		Summary:       "Upload Static File",
+		Description:   "Upload a file to Object Storage without modifying object key",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusCreated,
+	}, fileHandler.UploadStaticFile)
+
 	// GET /file/download/{id}
 	huma.Register(api, huma.Operation{
 		OperationID:   "download-file",
@@ -267,6 +278,17 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 		Tags:          []string{"File"},
 		DefaultStatus: http.StatusOK,
 	}, fileHandler.DownLoadFile)
+
+	// GET /file/download/key/{key}
+	huma.Register(api, huma.Operation{
+		OperationID:   "download-file-by-key",
+		Method:        http.MethodGet,
+		Path:          "/file/download/key/{key}",
+		Summary:       "Download File By Key",
+		Description:   "Download a file from Object Storage by object key",
+		Tags:          []string{"File"},
+		DefaultStatus: http.StatusOK,
+	}, fileHandler.DownloadFileByKey)
 
 	// GET /file/{id}
 	huma.Register(api, huma.Operation{

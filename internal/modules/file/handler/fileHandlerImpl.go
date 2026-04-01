@@ -56,6 +56,42 @@ func (f *fileHandlerImpl) UploadFile(ctx context.Context, input *dto.UploadFileI
 	return res, nil
 }
 
+func (f *fileHandlerImpl) UploadStaticFile(ctx context.Context, input *dto.UploadStaticFileInputDto) (*dto.UploadStaticFileOutputDto, error) {
+	formData := input.RawBody.Data()
+	file := formData.File
+	objKey := formData.ObjectBaseKey
+
+	// objKey/fileName
+	putKey := fmt.Sprintf("%v/%v", objKey, file.Filename)
+
+	// Upload to S3
+	key, err := f.fileRepo.UploadFile(ctx, putKey, file, file.Size, file.ContentType)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Error uploading a file", err)
+	}
+
+	// Store File Metadata to database
+	fileMeta := &database.File{
+		OriginalName: file.Filename,
+		Name:         uuid.New().String(),
+		Size:         file.Size,
+		ContentType:  file.ContentType,
+		ObjectKey:    key,
+	}
+	fileId, err := f.fileRepo.CreateFileMeta(ctx, fileMeta)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Error generating file metadata", err)
+	}
+
+	res := &dto.UploadStaticFileOutputDto{
+		Body: dto.UploadStaticFileOutputDtoBody{
+			FileID:    fileId.String(),
+			ObjectKey: putKey,
+		},
+	}
+	return res, nil
+}
+
 func (f *fileHandlerImpl) DownLoadFile(ctx context.Context, input *dto.DownloadFileInputDto) (*dto.DownloadFileOutputDto, error) {
 	fileMeta, err := f.fileRepo.GetFileMetaByID(ctx, input.ID)
 	if err != nil {
@@ -70,6 +106,20 @@ func (f *fileHandlerImpl) DownLoadFile(ctx context.Context, input *dto.DownloadF
 	res := &dto.DownloadFileOutputDto{
 		Body: dto.DownloadFileOutputDtoBody{
 			FileName:    fileMeta.Name,
+			DownloadURL: url,
+		},
+	}
+	return res, nil
+}
+
+func (f *fileHandlerImpl) DownloadFileByKey(ctx context.Context, input *dto.DownloadFileByKeyInputDto) (*dto.DownloadFileByKeyOutputDto, error) {
+	url, err := f.fileRepo.GeneratePresignUrl(ctx, input.ObjectKey)
+	if err != nil {
+		return nil, huma.Error404NotFound("The file with provided key does not exist", err)
+	}
+
+	res := &dto.DownloadFileByKeyOutputDto{
+		Body: dto.DownloadFileByKeyOutputDtoBody{
 			DownloadURL: url,
 		},
 	}
