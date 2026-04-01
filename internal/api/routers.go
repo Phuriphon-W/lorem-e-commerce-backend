@@ -63,14 +63,16 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 	humaConfig := createHumaConfig()
 	api := humaecho.New(router, humaConfig)
 
-	// Auth group has no middleware
+	// Setup Groups
 	authGroup := huma.NewGroup(api, "/auth")
-	registerAuthRoute(authGroup, db)
+	protectedGroup := huma.NewGroup(api, "/api")
 
 	// Apply verify token middleware to the rest
-	protectedGroup := huma.NewGroup(api, "/api")
 	protectedGroup.UseMiddleware(loremMiddleware.VerifyToken(api))
-	registerRoutes(protectedGroup, db, s3)
+
+	// Register routes
+	registerAuthRoute(authGroup, db)
+	registerRoutes(protectedGroup, api, db, s3)
 
 	return router
 }
@@ -84,17 +86,17 @@ func createHumaConfig() huma.Config {
 	return humaConfig
 }
 
-func registerRoutes(api huma.API, db database.Database, s3 *s3.Client) {
+func registerRoutes(protected huma.API, public huma.API, db database.Database, s3 *s3.Client) {
 	// Init object storage repository
 	s3Repository := fileRepo.NewS3Repository(s3)
 
 	// Init file metadata repository
 	fileRepository := fileRepo.NewFileMetaPostgresRepository(db, s3Repository)
 
-	registerUserRoute(api, db)
-	registerCategoryRoute(api, db)
-	registerProductRoute(api, db, fileRepository)
-	registerFileRoute(api, fileRepository)
+	registerUserRoute(protected, db)
+	registerCategoryRoute(protected, db)
+	registerProductRoute(protected, db, fileRepository)
+	registerFileRoute(protected, public, fileRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -242,12 +244,12 @@ func registerProductRoute(api huma.API, db database.Database, file fileRepo.File
 	}, productHandler.GetProductById)
 }
 
-func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
+func registerFileRoute(protected huma.API, public huma.API, fileRepository fileRepo.FileRepository) {
 	// Init file handler from repo
 	fileHandler := fileHandler.NewFileHandlerImpl(fileRepository)
 
 	// POST /file/upload
-	huma.Register(api, huma.Operation{
+	huma.Register(protected, huma.Operation{
 		OperationID:   "upload-file",
 		Method:        http.MethodPost,
 		Path:          "/file/upload",
@@ -258,7 +260,7 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 	}, fileHandler.UploadFile)
 
 	// POST /file/upload/static
-	huma.Register(api, huma.Operation{
+	huma.Register(protected, huma.Operation{
 		OperationID:   "upload-static-file",
 		Method:        http.MethodPost,
 		Path:          "/file/upload/static",
@@ -269,7 +271,7 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 	}, fileHandler.UploadStaticFile)
 
 	// GET /file/download/{id}
-	huma.Register(api, huma.Operation{
+	huma.Register(protected, huma.Operation{
 		OperationID:   "download-file",
 		Method:        http.MethodGet,
 		Path:          "/file/download/{id}",
@@ -279,8 +281,8 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 		DefaultStatus: http.StatusOK,
 	}, fileHandler.DownLoadFile)
 
-	// GET /file/download/key/{key}
-	huma.Register(api, huma.Operation{
+	// GET /file/download/key/{key} (public route mainly for downloading static image files)
+	huma.Register(public, huma.Operation{
 		OperationID:   "download-file-by-key",
 		Method:        http.MethodGet,
 		Path:          "/file/download/key/{key}",
@@ -291,7 +293,7 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 	}, fileHandler.DownloadFileByKey)
 
 	// GET /file/{id}
-	huma.Register(api, huma.Operation{
+	huma.Register(protected, huma.Operation{
 		OperationID:   "get-file-metadata",
 		Method:        http.MethodGet,
 		Path:          "/file/{id}",
@@ -302,7 +304,7 @@ func registerFileRoute(api huma.API, fileRepository fileRepo.FileRepository) {
 	}, fileHandler.GetFileMetaByID)
 
 	// GET /file
-	huma.Register(api, huma.Operation{
+	huma.Register(protected, huma.Operation{
 		OperationID:   "get-all-files-metadata",
 		Method:        http.MethodGet,
 		Path:          "/file",
