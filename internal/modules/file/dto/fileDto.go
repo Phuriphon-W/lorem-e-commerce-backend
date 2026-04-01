@@ -23,6 +23,25 @@ type (
 	}
 )
 
+// Upload Static File
+type (
+	UploadStaticFileInputDto struct {
+		RawBody huma.MultipartFormFiles[struct {
+			File          huma.FormFile `form:"file" required:"true" doc:"The file content to upload"`
+			ObjectBaseKey string        `form:"objectBaseKey" doc:"Base object key in object storage"`
+		}]
+	}
+
+	UploadStaticFileOutputDtoBody struct {
+		FileID    string `json:"fileId" doc:"ID of the Created File"`
+		ObjectKey string `json:"objectKey" doc:"Key of the created object in storage"`
+	}
+
+	UploadStaticFileOutputDto struct {
+		Body UploadStaticFileOutputDtoBody
+	}
+)
+
 // Download File
 type (
 	DownloadFileInputDto struct {
@@ -36,6 +55,20 @@ type (
 
 	DownloadFileOutputDto struct {
 		Body DownloadFileOutputDtoBody
+	}
+)
+
+type (
+	DownloadFileByKeyInputDto struct {
+		ObjectKey string `path:"key" required:"true" doc:"Key of an Object in Storage"`
+	}
+
+	DownloadFileByKeyOutputDtoBody struct {
+		DownloadURL string `json:"downloadUrl" doc:"Presign URL for Accessing the Object"`
+	}
+
+	DownloadFileByKeyOutputDto struct {
+		Body DownloadFileByKeyOutputDtoBody
 	}
 )
 
