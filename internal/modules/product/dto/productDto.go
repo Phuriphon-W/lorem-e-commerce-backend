@@ -27,7 +27,7 @@ type ProductFormDto struct {
 type ProductResponse struct {
 	ID uuid.UUID `json:"id" doc:"Product unique identifier" example:"550e8400-e29b-41d4-a716-446655440000"`
 	ProductDtoBase
-	Category catDto.CategoryDto
+	Category catDto.CategoryDto `json:"category" doc:"Category of the product"`
 }
 
 // Create Product
