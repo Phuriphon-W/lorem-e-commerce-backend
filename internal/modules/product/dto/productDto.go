@@ -65,8 +65,8 @@ type (
 	}
 
 	GetProductsOutputDtoBody struct {
-		Products []ProductResponse
-		Total    int64
+		Products []ProductResponse `json:"products"`
+		Total    int64             `json:"total"`
 	}
 
 	GetProductsOutputDto struct {
