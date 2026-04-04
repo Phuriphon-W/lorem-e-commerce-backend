@@ -114,6 +114,8 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 			Path:     "/",
 			HttpOnly: true,
 			MaxAge:   int(duration.Seconds()),
+			SameSite: http.SameSiteNoneMode,
+			Secure:   true,
 		},
 		Body: dto.SignInUserOutputDtoBody{
 			ID:       data.ID,
@@ -131,6 +133,8 @@ func (a *authHandlerImpl) SignOutUser(ctx context.Context, input *dto.SignOutUse
 		Path:     "/",
 		HttpOnly: true,
 		MaxAge:   -1, // -1 means "delete immediately"
+		SameSite: http.SameSiteNoneMode,
+		Secure:   true,
 	}
 
 	res := &dto.SignOutUserOutputDto{
