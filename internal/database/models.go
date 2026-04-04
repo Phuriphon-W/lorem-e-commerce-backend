@@ -62,13 +62,6 @@ type Product struct {
 	Category    Category
 }
 
-type AdminProductLog struct {
-	UserID    uint `gorm:"primaryKey;not null"`
-	ProductID uint `gorm:"primaryKey;not null"`
-	CreatedAt time.Time
-	Action    string `gorm:"varchar(255);not null"`
-}
-
 // Category
 type Category struct {
 	Base
