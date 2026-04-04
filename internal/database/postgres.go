@@ -27,7 +27,6 @@ func NewPostgresDb(conf *config.Config) Database {
 		&Cart{},
 		&CartItem{},
 		&Product{},
-		&AdminProductLog{},
 		&Category{},
 		&Order{},
 		&OrderItem{},
