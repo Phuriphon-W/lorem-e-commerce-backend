@@ -62,7 +62,7 @@ func (f *fileHandlerImpl) UploadStaticFile(ctx context.Context, input *dto.Uploa
 	objKey := formData.ObjectBaseKey
 
 	// objKey/fileName
-	putKey := fmt.Sprintf("%v/%v", objKey, file.Filename)
+	putKey := fmt.Sprintf("%v/%v", objKey, formData.FileName)
 
 	// Upload to S3
 	key, err := f.fileRepo.UploadFile(ctx, putKey, file, file.Size, file.ContentType)

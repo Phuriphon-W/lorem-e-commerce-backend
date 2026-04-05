@@ -28,6 +28,7 @@ type (
 	UploadStaticFileInputDto struct {
 		RawBody huma.MultipartFormFiles[struct {
 			File          huma.FormFile `form:"file" required:"true" doc:"The file content to upload"`
+			FileName      string        `form:"string" doc:"The name of the file to be stored in storage"`
 			ObjectBaseKey string        `form:"objectBaseKey" doc:"Base object key in object storage"`
 		}]
 	}
