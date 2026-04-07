@@ -29,24 +29,49 @@ func (r *productPostgresRepository) CreateProduct(ctx context.Context, product *
 	return product.ID, nil
 }
 
-func (r *productPostgresRepository) GetProducts(ctx context.Context, page uint64, pageSize uint64) ([]database.Product, int64, error) {
+func (r *productPostgresRepository) GetProducts(
+	ctx context.Context,
+	page uint64,
+	pageSize uint64,
+	category string,
+	search string,
+	order string,
+) ([]database.Product, int64, error) {
 	var products []database.Product
 	var total int64
-	db := r.db.GetDb()
+	query := r.db.GetDb().WithContext(ctx).Model(&database.Product{})
 
-	// Count total records
-	if err := db.Model(&database.Product{}).Count(&total).Error; err != nil {
+	// Filter by Category
+	if category != "" {
+		query = query.Joins("JOIN categories ON products.category_id = categories.id").
+			Where("categories.name ILIKE ?", category)
+	}
+
+	// Filter by Search
+	if search != "" {
+		query = query.Where("products.name ILIKE ?", "%"+search+"%")
+	}
+
+	// Count Total Records
+	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	// Calculate Offset
+	// Apply Ordering
+	if order != "" {
+		query.Order(order)
+	} else {
+		// Default order in ascending created date
+		query.Order("products.created_at DESC")
+	}
+
+	// Calculate Page Offset
 	offset := (page - 1) * pageSize
 
-	// Fetch paginated data
-	err := db.WithContext(ctx).
+	// Apply Pagination and fetch data
+	err := query.WithContext(ctx).
 		Limit(int(pageSize)).
 		Offset(int(offset)).
-		Order("created_at DESC"). // Ordered by DESC by default
 		Preload("Category").
 		Find(&products).Error
 

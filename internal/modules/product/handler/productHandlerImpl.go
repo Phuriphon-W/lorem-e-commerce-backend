@@ -65,7 +65,14 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 }
 
 func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
-	products, total, err := p.productRepository.GetProducts(ctx, input.PageNumber, input.PageSize)
+	products, total, err := p.productRepository.GetProducts(
+		ctx,
+		input.PageNumber,
+		input.PageSize,
+		input.Category,
+		input.Search,
+		input.Order,
+	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Failed to retrieve products", err)
 	}
