@@ -65,13 +65,30 @@ func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.Creat
 }
 
 func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error) {
+	var order string
+
+	switch input.Order {
+	case "price_low":
+		order = "products.price ASC"
+	case "price_high":
+		order = "products.price DESC"
+	case "name_asc":
+		order = "products.name ASC"
+	case "name_desc":
+		order = "products.name DESC"
+	case "date_asc":
+		order = "products.created_at ASC"
+	default:
+		order = "products.created_at DESC"
+	}
+
 	products, total, err := p.productRepository.GetProducts(
 		ctx,
 		input.PageNumber,
 		input.PageSize,
 		input.Category,
 		input.Search,
-		input.Order,
+		order,
 	)
 	if err != nil {
 		return nil, huma.Error404NotFound("Failed to retrieve products", err)
