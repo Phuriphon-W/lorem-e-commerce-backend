@@ -44,8 +44,8 @@ type Cart struct {
 
 type CartItem struct {
 	Base
-	CartID    uint
-	ProductID uint
+	CartID    uuid.UUID
+	ProductID uuid.UUID
 	Product   Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Quantity  uint    `gorm:"not null"`
 }
