@@ -6,6 +6,8 @@ import (
 	"lorem-backend/internal/database"
 	authHandler "lorem-backend/internal/modules/auth/handler"
 	authRepo "lorem-backend/internal/modules/auth/repository"
+	cartHandler "lorem-backend/internal/modules/cart/handler"
+	cartRepo "lorem-backend/internal/modules/cart/repository"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
 	fileHandler "lorem-backend/internal/modules/file/handler"
@@ -35,10 +37,11 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 		AllowCredentials: true,
 	}))
 	router.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogStatus: true,
-		LogMethod: true,
-		LogURI:    true,
-		LogError:  true,
+		LogStatus:  true,
+		LogMethod:  true,
+		LogURI:     true,
+		LogError:   true,
+		LogLatency: true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			// Generate a readable timestamp: YYYY-MM-DD HH-MM-SS
 			timestamp := time.Now().Format("2006-01-02 15:04:05")
@@ -46,12 +49,12 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 			// Format: [TIMESTAMP] METHOD URI - STATUS
 			if v.Error != nil {
 				// Log with Error detail if something went wrong
-				fmt.Printf("[%s] %s %s | STATUS: %d | ERR: %v\n",
-					timestamp, v.Method, v.URI, v.Status, v.Error)
+				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms | ERR: %v\n",
+					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds(), v.Error)
 			} else {
 				// Standard Request Log
-				fmt.Printf("[%s] %s %s | STATUS: %d\n",
-					timestamp, v.Method, v.URI, v.Status)
+				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms\n",
+					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds())
 			}
 
 			return nil
@@ -97,6 +100,7 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	registerCategoryRoute(protected, db)
 	registerProductRoute(protected, db, fileRepository)
 	registerFileRoute(protected, public, fileRepository)
+	registerCartRoute(protected, db, fileRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -313,4 +317,53 @@ func registerFileRoute(protected huma.API, public huma.API, fileRepository fileR
 		Tags:          []string{"File"},
 		DefaultStatus: http.StatusOK,
 	}, fileHandler.GetAllFilesMetadata)
+}
+
+func registerCartRoute(api huma.API, db database.Database, fileRepository fileRepo.FileRepository) {
+	repo := cartRepo.NewCartPostgresRepository(db)
+	handler := cartHandler.NewCartHandler(repo, fileRepository)
+
+	// GET /user/{id}/cart
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-user-cart",
+		Method:        http.MethodGet,
+		Path:          "/user/{id}/cart",
+		Summary:       "Get User Cart",
+		Description:   "Retrieve the active cart and items for a user",
+		Tags:          []string{"Cart"},
+		DefaultStatus: http.StatusOK,
+	}, handler.GetCartByUserId)
+
+	// POST /user/{id}/cart
+	huma.Register(api, huma.Operation{
+		OperationID:   "add-cart-item",
+		Method:        http.MethodPost,
+		Path:          "/user/{id}/cart",
+		Summary:       "Add Item to Cart",
+		Description:   "Add a new product to the cart or increase quantity if it exists",
+		Tags:          []string{"Cart"},
+		DefaultStatus: http.StatusOK,
+	}, handler.CreateCartItem)
+
+	// PUT /user/{id}/cart
+	huma.Register(api, huma.Operation{
+		OperationID:   "edit-cart-item",
+		Method:        http.MethodPut,
+		Path:          "/user/{id}/cart",
+		Summary:       "Edit Cart Item",
+		Description:   "Edit the exact quantity of a specific cart item (Must be >= 1)",
+		Tags:          []string{"Cart"},
+		DefaultStatus: http.StatusOK,
+	}, handler.EditCartItem)
+
+	// POST /user/{id}/cart/remove-items
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-cart-items",
+		Method:        http.MethodPost,
+		Path:          "/user/{id}/cart/remove-items",
+		Summary:       "Remove Cart Items",
+		Description:   "Remove one or multiple items from the cart using an array of Product IDs",
+		Tags:          []string{"Cart"},
+		DefaultStatus: http.StatusOK,
+	}, handler.DeleteCartItems)
 }
