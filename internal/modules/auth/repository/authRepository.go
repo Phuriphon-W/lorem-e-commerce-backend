@@ -14,5 +14,9 @@ type AuthRepository interface {
 		Username     string
 		PasswordHash string
 	}, error)
+	GetUserByUsername(ctx context.Context, username string) (*struct {
+		ID       uuid.UUID
+		Username string
+	}, error)
 	// SignOut(ctx context.Context)
 }

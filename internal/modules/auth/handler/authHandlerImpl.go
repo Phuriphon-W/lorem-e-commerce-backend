@@ -34,6 +34,12 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 		return nil, huma.Error409Conflict("An account with this email address already exists.")
 	}
 
+	// Check if user with this username already exist
+	usernameData, err := a.authRepository.GetUserByUsername(ctx, input.Body.Username)
+	if usernameData != nil {
+		return nil, huma.Error409Conflict("An account with this username already exist.")
+	}
+
 	hashed, err := utils.HashPassword(input.Body.Password)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to hash password", err)

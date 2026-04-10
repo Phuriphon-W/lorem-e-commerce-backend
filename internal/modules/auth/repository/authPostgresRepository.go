@@ -68,3 +68,25 @@ func (a *authPostgresRepository) GetUserByEmail(ctx context.Context, email strin
 
 	return &result, nil
 }
+
+func (a *authPostgresRepository) GetUserByUsername(ctx context.Context, username string) (*struct {
+	ID       uuid.UUID
+	Username string
+}, error) {
+	var result struct {
+		ID       uuid.UUID
+		Username string
+	}
+
+	err := a.db.GetDb().WithContext(ctx).
+		Table("users").
+		Select("id", "username").
+		Where("username = ?", username).
+		First(&result).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &result, nil
+}
