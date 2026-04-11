@@ -61,8 +61,10 @@ func (c *cartPostgresRepository) EditCartItem(ctx context.Context, cartId uuid.U
 		Update("quantity", quantity).Error
 }
 
+// Hard Delete for cart items with Unscoped
 func (c *cartPostgresRepository) RemoveCartItems(ctx context.Context, cartId uuid.UUID, productIds []uuid.UUID) error {
 	return c.db.GetDb().WithContext(ctx).
+		Unscoped().
 		Where("cart_id = ? AND product_id IN ?", cartId, productIds).
 		Delete(&database.CartItem{}).Error
 }
