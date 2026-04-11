@@ -20,7 +20,10 @@ func NewCartPostgresRepository(db database.Database) CartRepository {
 
 func (c *cartPostgresRepository) GetCartByUserId(ctx context.Context, userId uuid.UUID) (*database.Cart, error) {
 	cart, err := gorm.G[database.Cart](c.db.GetDb()).
-		Preload("CartItems", nil).
+		Preload("CartItems", func(db gorm.PreloadBuilder) error {
+			db.Order("created_at ASC")
+			return nil
+		}).
 		Preload("CartItems.Product", nil).
 		Preload("CartItems.Product.Category", nil).
 		Where("user_id = ?", userId).
