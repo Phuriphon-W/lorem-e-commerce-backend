@@ -12,6 +12,8 @@ import (
 	catRepo "lorem-backend/internal/modules/category/repository"
 	fileHandler "lorem-backend/internal/modules/file/handler"
 	fileRepo "lorem-backend/internal/modules/file/repository"
+	orderHandler "lorem-backend/internal/modules/order/handler"
+	orderRepo "lorem-backend/internal/modules/order/repository"
 	productHandler "lorem-backend/internal/modules/product/handler"
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
@@ -96,11 +98,15 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	// Init file metadata repository
 	fileRepository := fileRepo.NewFileMetaPostgresRepository(db, s3Repository)
 
+	// Init product repository
+	productRepository := productRepo.NewProductPostgresRepository(db)
+
 	registerUserRoute(protected, db)
 	registerCategoryRoute(protected, db)
-	registerProductRoute(protected, db, fileRepository)
+	registerProductRoute(protected, db, fileRepository, productRepository)
 	registerFileRoute(protected, public, fileRepository)
 	registerCartRoute(protected, db, fileRepository)
+	registerOrderRoute(protected, db, productRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -209,10 +215,9 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 	}, categoryHandler.GetCategories)
 }
 
-func registerProductRoute(api huma.API, db database.Database, file fileRepo.FileRepository) {
+func registerProductRoute(api huma.API, db database.Database, file fileRepo.FileRepository, prodRepo productRepo.ProductRepository) {
 	// Init product repo and handler
-	productRepo := productRepo.NewProductPostgresRepository(db)
-	productHandler := productHandler.NewProductHandlerImpl(productRepo, file)
+	productHandler := productHandler.NewProductHandlerImpl(prodRepo, file)
 
 	// POST /product
 	huma.Register(api, huma.Operation{
@@ -366,4 +371,50 @@ func registerCartRoute(api huma.API, db database.Database, fileRepository fileRe
 		Tags:          []string{"Cart"},
 		DefaultStatus: http.StatusOK,
 	}, handler.DeleteCartItems)
+}
+
+func registerOrderRoute(api huma.API, db database.Database, prodRepo productRepo.ProductRepository) {
+	orderRepo := orderRepo.NewOrderPostgresRepository(db)
+	orderHandler := orderHandler.NewOrderHandlerImpl(orderRepo, prodRepo)
+
+	// POST /order
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-order",
+		Method:        http.MethodPost,
+		Path:          "/order",
+		Summary:       "Create Order",
+		Description:   "Create a new order from items",
+		Tags:          []string{"Order"},
+		DefaultStatus: http.StatusCreated,
+	}, orderHandler.CreateOrder)
+
+	// GET /user/{userId}/orders
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-user-orders",
+		Method:        http.MethodGet,
+		Path:          "/user/{userId}/orders",
+		Summary:       "Get User Orders",
+		Tags:          []string{"Order"},
+		DefaultStatus: http.StatusOK,
+	}, orderHandler.GetOrders)
+
+	// GET /order/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-order-by-id",
+		Method:        http.MethodGet,
+		Path:          "/order/{id}",
+		Summary:       "Get Order By ID",
+		Tags:          []string{"Order"},
+		DefaultStatus: http.StatusOK,
+	}, orderHandler.GetOrderById)
+
+	// PATCH /order/{id}/status
+	huma.Register(api, huma.Operation{
+		OperationID:   "update-order-status",
+		Method:        http.MethodPatch,
+		Path:          "/order/{id}/status",
+		Summary:       "Update Order Status",
+		Tags:          []string{"Order"},
+		DefaultStatus: http.StatusOK,
+	}, orderHandler.UpdateOrderStatus)
 }
