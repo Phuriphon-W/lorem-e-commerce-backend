@@ -94,3 +94,17 @@ func (r *productPostgresRepository) GetProductByID(ctx context.Context, productI
 
 	return &product, nil
 }
+
+func (r *productPostgresRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
+	var products []database.Product
+
+	err := r.db.GetDb().WithContext(ctx).
+		Where("id IN ?", productIDs).
+		Find(&products).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return products, nil
+}

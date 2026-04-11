@@ -77,11 +77,12 @@ const (
 	Paid      OrderStatus = "paid"
 	Shipping  OrderStatus = "shipping"
 	Completed OrderStatus = "completed"
+	Failed    OrderStatus = "failed"
 )
 
 type Order struct {
 	Base
-	UserID      uint        `gorm:"not null"`
+	UserID      uuid.UUID   `gorm:"not null"`
 	User        User        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	TotalPrice  float32     `gorm:"type:decimal(10,2);not null;check:total_price >= 0"`
 	OrderStatus OrderStatus `gorm:"type:varchar(20);not null;default:'pending'"`
@@ -90,9 +91,9 @@ type Order struct {
 
 type OrderItem struct {
 	Base
-	OrderID         uint  `gorm:"primaryKey;not null"`
-	Order           Order `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	ProductID       uint
+	OrderID         uuid.UUID `gorm:"primaryKey;not null"`
+	Order           Order     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	ProductID       uuid.UUID
 	Product         Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	PriceAtPurchase float32 `gorm:"not null;check:price_at_purchase >= 0"`
 	Quantity        uint    `gorm:"not null"`
@@ -101,11 +102,11 @@ type OrderItem struct {
 // Payment
 type Payment struct {
 	Base
-	OrderID       uint    `gorm:"not null"`
-	UserID        uint    `gorm:"not null"`
-	PaymentMethod string  `gorm:"type:varchar(255);not null"`
-	PaymentAmount float64 `gorm:"type:decimal(10,2);not null;check:payment_amount >= 0"`
-	PaymentStatus string  `gorm:"type:varchar(20);not null"`
+	OrderID       uuid.UUID `gorm:"not null"`
+	UserID        uuid.UUID `gorm:"not null"`
+	PaymentMethod string    `gorm:"type:varchar(255);not null"`
+	PaymentAmount float64   `gorm:"type:decimal(10,2);not null;check:payment_amount >= 0"`
+	PaymentStatus string    `gorm:"type:varchar(20);not null"`
 }
 
 // File Metadata
