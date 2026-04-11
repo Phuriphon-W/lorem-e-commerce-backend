@@ -43,10 +43,18 @@ func (h *cartHandlerImpl) GetCartByUserId(ctx context.Context, input *dto.GetCar
 		go func() {
 			defer wg.Done()
 
+			// generate product image url
 			itemImageUrl, err := h.fileRepo.GeneratePresignUrl(ctx, item.Product.ImageObjKey)
 			if err != nil {
 				fmt.Printf("Error generating URL for %s: %v\n", item.Product.ID, err)
 				itemImageUrl = ""
+			}
+
+			// get available in stock
+			available, err := h.cartRepo.GetProductStock(ctx, item.ProductID)
+			if err != nil {
+				fmt.Printf("Error getting available amount for product with id: %v", item.ProductID)
+				available = 0
 			}
 
 			// Map to DTO
@@ -57,6 +65,7 @@ func (h *cartHandlerImpl) GetCartByUserId(ctx context.Context, input *dto.GetCar
 				Price:       item.Product.Price,
 				ImageURL:    itemImageUrl,
 				Quantity:    item.Quantity,
+				Available:   available,
 				Category: catDto.CategoryDto{
 					ID:   item.Product.Category.ID,
 					Name: item.Product.Category.Name,

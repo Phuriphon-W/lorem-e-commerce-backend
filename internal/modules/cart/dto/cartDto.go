@@ -14,6 +14,7 @@ type CartItemDto struct {
 	ImageURL    string             `json:"image_url" required:"true" doc:"Image URL"`
 	Category    catDto.CategoryDto `json:"category" required:"true" doc:"Item category"`
 	Quantity    uint               `json:"quantity" required:"true" minimum:"1" doc:"Quantity in cart"`
+	Available   uint               `json:"available" required:"true" doc:"Amount of available products in stock"`
 }
 
 // Get Cart
