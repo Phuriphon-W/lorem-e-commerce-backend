@@ -14,6 +14,9 @@ import (
 	fileRepo "lorem-backend/internal/modules/file/repository"
 	orderHandler "lorem-backend/internal/modules/order/handler"
 	orderRepo "lorem-backend/internal/modules/order/repository"
+	"lorem-backend/internal/modules/payment/gateway"
+	paymentHandler "lorem-backend/internal/modules/payment/handler"
+	paymentRepo "lorem-backend/internal/modules/payment/repository"
 	productHandler "lorem-backend/internal/modules/product/handler"
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
@@ -77,7 +80,7 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 
 	// Register routes
 	registerAuthRoute(authGroup, db)
-	registerRoutes(protectedGroup, api, db, s3)
+	registerRoutes(protectedGroup, api, db, s3, router)
 
 	return router
 }
@@ -91,7 +94,7 @@ func createHumaConfig() huma.Config {
 	return humaConfig
 }
 
-func registerRoutes(protected huma.API, public huma.API, db database.Database, s3 *s3.Client) {
+func registerRoutes(protected huma.API, public huma.API, db database.Database, s3 *s3.Client, e *echo.Echo) {
 	// Init object storage repository
 	s3Repository := fileRepo.NewS3Repository(s3)
 
@@ -101,12 +104,16 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	// Init product repository
 	productRepository := productRepo.NewProductPostgresRepository(db)
 
+	// Init order repository
+	orderRepository := orderRepo.NewOrderPostgresRepository(db)
+
 	registerUserRoute(protected, db)
 	registerCategoryRoute(protected, db)
-	registerProductRoute(protected, db, fileRepository, productRepository)
+	registerProductRoute(protected, fileRepository, productRepository)
 	registerFileRoute(protected, public, fileRepository)
 	registerCartRoute(protected, db, fileRepository)
-	registerOrderRoute(protected, db, productRepository)
+	registerOrderRoute(protected, orderRepository, productRepository)
+	registerPaymentRoute(protected, e, db, orderRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -215,7 +222,7 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 	}, categoryHandler.GetCategories)
 }
 
-func registerProductRoute(api huma.API, db database.Database, file fileRepo.FileRepository, prodRepo productRepo.ProductRepository) {
+func registerProductRoute(api huma.API, file fileRepo.FileRepository, prodRepo productRepo.ProductRepository) {
 	// Init product repo and handler
 	productHandler := productHandler.NewProductHandlerImpl(prodRepo, file)
 
@@ -373,8 +380,7 @@ func registerCartRoute(api huma.API, db database.Database, fileRepository fileRe
 	}, handler.DeleteCartItems)
 }
 
-func registerOrderRoute(api huma.API, db database.Database, prodRepo productRepo.ProductRepository) {
-	orderRepo := orderRepo.NewOrderPostgresRepository(db)
+func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodRepo productRepo.ProductRepository) {
 	orderHandler := orderHandler.NewOrderHandlerImpl(orderRepo, prodRepo)
 
 	// POST /order
@@ -417,4 +423,29 @@ func registerOrderRoute(api huma.API, db database.Database, prodRepo productRepo
 		Tags:          []string{"Order"},
 		DefaultStatus: http.StatusOK,
 	}, orderHandler.UpdateOrderStatus)
+}
+
+func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository) {
+	// Init Stripe gateway
+	stripeGateway := gateway.NewStripePaymentGateway(config.GlobalConfig.StripeSecretKey, config.GlobalConfig.StripeWebhookSecret)
+
+	// Init Payment Repository and Handler
+	paymentRepository := paymentRepo.NewPaymentPostgresRepository(db)
+	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, stripeGateway)
+
+	// Register Webhook directly via Echo
+	// POST /api/webhook/stripe
+	e.POST("/api/webhook/stripe", paymentHandler.HandleStripeWebhook)
+
+	// Register standard API via huma
+	// POST /api/payment/checkout
+	huma.Register(api, huma.Operation{
+		OperationID:   "create-checkout-session",
+		Method:        http.MethodPost,
+		Path:          "/payment/checkout",
+		Summary:       "Create Checkout Session",
+		Description:   "Create a Stripe checkout session for an order",
+		Tags:          []string{"Payment"},
+		DefaultStatus: http.StatusOK,
+	}, paymentHandler.CreateCheckoutSession)
 }
