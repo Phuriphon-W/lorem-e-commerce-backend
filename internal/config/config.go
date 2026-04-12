@@ -7,20 +7,22 @@ import (
 )
 
 type Config struct {
-	Port         int    `mapstructure:"PORT"`
-	DBHost       string `mapstructure:"DB_HOST"`
-	DBUser       string `mapstructure:"DB_USER"`
-	DBPassword   string `mapstructure:"DB_PASSWORD"`
-	DBName       string `mapstructure:"DB_NAME"`
-	DBPort       int    `mapstructure:"DB_PORT"`
-	JWTSecret    string `mapstructure:"JWT_SECRET"`
-	JWTExpire    string `mapstructure:"JWT_EXPIRE"`
-	FrontendURL  string `mapstructure:"FRONTEND_URL"`
-	S3Endpoint   string `mapstructure:"S3_URL"`
-	BucketName   string `mapstructure:"BUCKET_NAME"`
-	AwsAccessKey string `mapstructure:"AWS_ACCESS_KEY"`
-	AwsSecretKey string `mapstructure:"AWS_SECRET_KEY"`
-	AwsRegion    string `mapstructure:"AWS_REGION"`
+	Port                int    `mapstructure:"PORT"`
+	DBHost              string `mapstructure:"DB_HOST"`
+	DBUser              string `mapstructure:"DB_USER"`
+	DBPassword          string `mapstructure:"DB_PASSWORD"`
+	DBName              string `mapstructure:"DB_NAME"`
+	DBPort              int    `mapstructure:"DB_PORT"`
+	JWTSecret           string `mapstructure:"JWT_SECRET"`
+	JWTExpire           string `mapstructure:"JWT_EXPIRE"`
+	FrontendURL         string `mapstructure:"FRONTEND_URL"`
+	S3Endpoint          string `mapstructure:"S3_URL"`
+	BucketName          string `mapstructure:"BUCKET_NAME"`
+	AwsAccessKey        string `mapstructure:"AWS_ACCESS_KEY"`
+	AwsSecretKey        string `mapstructure:"AWS_SECRET_KEY"`
+	AwsRegion           string `mapstructure:"AWS_REGION"`
+	StripeSecretKey     string `mapstructure:"STRIPE_SECRET_KEY"`
+	StripeWebhookSecret string `mapstructure:"STRIPE_WEBHOOK_SECRET"`
 }
 
 var GlobalConfig *Config
