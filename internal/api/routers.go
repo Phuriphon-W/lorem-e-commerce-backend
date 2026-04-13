@@ -181,6 +181,17 @@ func registerUserRoute(api huma.API, db database.Database) {
 		Tags:          []string{"User"},
 		DefaultStatus: http.StatusOK,
 	}, userHandler.GetMe)
+
+	// PUT /user/me
+	huma.Register(api, huma.Operation{
+		OperationID:   "update-me",
+		Method:        http.MethodPut,
+		Path:          "/user/me",
+		Summary:       "Update Me",
+		Description:   "Update current user data",
+		Tags:          []string{"User"},
+		DefaultStatus: http.StatusCreated,
+	}, userHandler.UpdateMe)
 }
 
 func registerCategoryRoute(api huma.API, db database.Database) {

@@ -10,4 +10,5 @@ import (
 type UserRepository interface {
 	GetUsers(ctx context.Context) ([]database.User, error)
 	GetUserByID(ctx context.Context, userID uuid.UUID) (*database.User, error)
+	UpdateUser(ctx context.Context, user *database.User) error
 }
