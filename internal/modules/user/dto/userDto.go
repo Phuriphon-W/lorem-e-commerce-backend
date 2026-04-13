@@ -46,3 +46,23 @@ type (
 		Body UserDto
 	}
 )
+
+// Update User
+type (
+	UpdateMeInputDto struct {
+		Body struct {
+			FirstName string      `json:"firstName"`
+			LastName  string      `json:"lastName"`
+			Telephone string      `json:"telephone"`
+			Address   UserAddress `json:"address"`
+		}
+	}
+
+	UpdateMeOutputDtoBody struct {
+		Message string `json:"message"`
+	}
+
+	UpdateMeOutputDto struct {
+		Body UpdateMeOutputDtoBody
+	}
+)

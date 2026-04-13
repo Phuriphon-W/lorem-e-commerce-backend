@@ -85,3 +85,50 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 
 	return res, nil
 }
+
+func (u *userHandlerImpl) UpdateMe(ctx context.Context, input *dto.UpdateMeInputDto) (*dto.UpdateMeOutputDto, error) {
+	// Get the value from context
+	val := ctx.Value("userID")
+
+	userIDStr, ok := val.(string)
+	if !ok {
+		return nil, huma.Error400BadRequest("invalid or missing user ID in context")
+	}
+
+	// Parse string to uuid.UUID type
+	parsedID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil, huma.Error400BadRequest("Invalid UUID format", err)
+	}
+
+	// Fetch the existing user to ensure they exist and we don't overwrite other fields
+	user, err := u.userRepository.GetUserByID(ctx, parsedID)
+	if err != nil {
+		return nil, huma.Error404NotFound("User not found", err)
+	}
+
+	// Update ONLY the fields allowed by the frontend
+	// We use the helper to safely convert strings to pointers and handle empty inputs
+	user.FirstName = input.Body.FirstName
+	user.LastName = input.Body.LastName
+	user.Telephone = utils.StringToPtr(input.Body.Telephone)
+	user.HouseNumber = utils.StringToPtr(input.Body.Address.HouseNumber)
+	user.Road = utils.StringToPtr(input.Body.Address.Road)
+	user.District = utils.StringToPtr(input.Body.Address.District)
+	user.SubDistrict = utils.StringToPtr(input.Body.Address.SubDistrict)
+	user.Province = utils.StringToPtr(input.Body.Address.Province)
+	user.ZipCode = utils.StringToPtr(input.Body.Address.ZipCode)
+
+	// Save the updated user back to the database
+	err = u.userRepository.UpdateUser(ctx, user)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to update user profile", err)
+	}
+
+	// Return success response
+	return &dto.UpdateMeOutputDto{
+		Body: dto.UpdateMeOutputDtoBody{
+			Message: "Profile Updated Successfully",
+		},
+	}, nil
+}

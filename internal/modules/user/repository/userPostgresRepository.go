@@ -37,3 +37,13 @@ func (r *userPostgresRepository) GetUserByID(ctx context.Context, userID uuid.UU
 
 	return &user, nil
 }
+
+func (r *userPostgresRepository) UpdateUser(ctx context.Context, user *database.User) error {
+	err := r.db.GetDb().WithContext(ctx).Save(user).Error
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

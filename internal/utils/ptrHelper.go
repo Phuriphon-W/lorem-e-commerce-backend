@@ -6,3 +6,10 @@ func PtrToStringOrDefault(ptr *string, defaultVal string) string {
 	}
 	return *ptr
 }
+
+func StringToPtr(s string) *string {
+	if s == "" {
+		return nil // Save as NULL in database if empty
+	}
+	return &s
+}
