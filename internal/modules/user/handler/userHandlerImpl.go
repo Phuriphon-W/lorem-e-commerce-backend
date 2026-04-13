@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"lorem-backend/internal/modules/user/dto"
 	"lorem-backend/internal/modules/user/repository"
+	"lorem-backend/internal/utils"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -61,12 +62,24 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 		return nil, huma.Error404NotFound("Failed to get current user data", err)
 	}
 
+	userAddress := dto.UserAddress{
+		ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
+		Road:        utils.PtrToStringOrDefault(user.Road, "null"),
+		District:    utils.PtrToStringOrDefault(user.District, "null"),
+		SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
+		HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
+		Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+	}
+
 	res := &dto.GetMeOutputDto{
 		Body: dto.UserDto{
 			ID:        user.ID,
 			Username:  user.Username,
 			LastName:  user.LastName,
 			FirstName: user.FirstName,
+			Email:     user.Email,
+			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Address:   userAddress,
 		},
 	}
 
