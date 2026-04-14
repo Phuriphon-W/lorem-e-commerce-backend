@@ -112,7 +112,7 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	registerProductRoute(protected, fileRepository, productRepository)
 	registerFileRoute(protected, public, fileRepository)
 	registerCartRoute(protected, db, fileRepository)
-	registerOrderRoute(protected, orderRepository, productRepository)
+	registerOrderRoute(protected, orderRepository, productRepository, fileRepository)
 	registerPaymentRoute(protected, e, db, orderRepository)
 }
 
@@ -391,8 +391,8 @@ func registerCartRoute(api huma.API, db database.Database, fileRepository fileRe
 	}, handler.DeleteCartItems)
 }
 
-func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodRepo productRepo.ProductRepository) {
-	orderHandler := orderHandler.NewOrderHandlerImpl(orderRepo, prodRepo)
+func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) {
+	orderHandler := orderHandler.NewOrderHandlerImpl(orderRepo, prodRepo, fileRepo)
 
 	// POST /order
 	huma.Register(api, huma.Operation{
