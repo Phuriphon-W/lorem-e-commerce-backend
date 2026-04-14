@@ -47,9 +47,8 @@ func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID 
 		Order("created_at DESC").
 		Limit(int(pageSize)).
 		Offset(int(offset)).
-		Preload("OrderItems", func(db gorm.PreloadBuilder) error {
-			db.Order("created_at ASC")
-			return nil
+		Preload("OrderItems", func(db *gorm.DB) *gorm.DB {
+			return db.Order("created_at ASC")
 		}).
 		Preload("OrderItems.Product", nil).
 		Find(&orders).Error

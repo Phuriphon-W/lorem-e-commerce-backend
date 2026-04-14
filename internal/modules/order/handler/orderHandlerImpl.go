@@ -4,10 +4,12 @@ import (
 	"context"
 	"fmt"
 	"lorem-backend/internal/database"
+	fileRepo "lorem-backend/internal/modules/file/repository"
 	"lorem-backend/internal/modules/order/dto"
 	"lorem-backend/internal/modules/order/repository"
 	productDto "lorem-backend/internal/modules/product/dto"
 	productRepo "lorem-backend/internal/modules/product/repository"
+	"sync"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -16,12 +18,14 @@ import (
 type orderHandlerImpl struct {
 	orderRepository   repository.OrderRepository
 	productRepository productRepo.ProductRepository
+	fileRepository    fileRepo.FileRepository
 }
 
-func NewOrderHandlerImpl(orderRepo repository.OrderRepository, prodRepo productRepo.ProductRepository) OrderHandler {
+func NewOrderHandlerImpl(orderRepo repository.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) OrderHandler {
 	return &orderHandlerImpl{
 		orderRepository:   orderRepo,
 		productRepository: prodRepo,
+		fileRepository:    fileRepo,
 	}
 }
 
@@ -100,7 +104,7 @@ func (h *orderHandlerImpl) GetOrders(ctx context.Context, input *dto.GetOrdersIn
 
 	results := make([]dto.OrderResponse, len(orders))
 	for i, ord := range orders {
-		results[i] = mapOrderToResponse(ord)
+		results[i] = h.mapOrderToResponse(ctx, ord)
 	}
 
 	return &dto.GetOrdersOutputDto{
@@ -118,7 +122,7 @@ func (h *orderHandlerImpl) GetOrderById(ctx context.Context, input *dto.GetOrder
 	}
 
 	return &dto.GetOrderByIdOutputDto{
-		Body: mapOrderToResponse(*order),
+		Body: h.mapOrderToResponse(ctx, *order),
 	}, nil
 }
 
@@ -136,23 +140,42 @@ func (h *orderHandlerImpl) UpdateOrderStatus(ctx context.Context, input *dto.Upd
 }
 
 // Helper function to keep handler clean
-func mapOrderToResponse(ord database.Order) dto.OrderResponse {
+func (h *orderHandlerImpl) mapOrderToResponse(ctx context.Context, ord database.Order) dto.OrderResponse {
 	items := make([]dto.OrderItemResponse, len(ord.OrderItems))
-	for j, item := range ord.OrderItems {
-		items[j] = dto.OrderItemResponse{
-			ID:              item.ID,
-			ProductID:       item.ProductID,
-			PriceAtPurchase: item.PriceAtPurchase,
-			Quantity:        item.Quantity,
-			Product: productDto.ProductDtoBase{
-				Name:        item.Product.Name,
-				Description: item.Product.Description,
-				Price:       item.Product.Price,
-				Available:   item.Product.Available,
-				ImageURL:    "", // Note: Generate presigned URL here if needed, similar to GetProducts
-			},
-		}
+
+	var wg sync.WaitGroup
+
+	for i, item := range ord.OrderItems {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			// generate product image url
+			itemImageUrl, err := h.fileRepository.GeneratePresignUrl(ctx, item.Product.ImageObjKey)
+			if err != nil {
+				fmt.Printf("Error generating URL for %s: %v\n", item.Product.ID, err)
+				itemImageUrl = ""
+			}
+
+			// Map to DTO
+			items[i] = dto.OrderItemResponse{
+				ID:              item.ID,
+				ProductID:       item.ProductID,
+				PriceAtPurchase: item.PriceAtPurchase,
+				Quantity:        item.Quantity,
+				Product: productDto.ProductDtoBase{
+					Name:        item.Product.Name,
+					Description: item.Product.Description,
+					Price:       item.Product.Price,
+					Available:   item.Product.Available,
+					ImageURL:    itemImageUrl,
+				},
+			}
+		}()
 	}
+
+	wg.Wait()
 
 	return dto.OrderResponse{
 		ID:          ord.ID,
