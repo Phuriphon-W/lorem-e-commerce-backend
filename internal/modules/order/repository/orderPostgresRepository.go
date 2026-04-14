@@ -29,10 +29,21 @@ func (r *orderPostgresRepository) CreateOrder(ctx context.Context, order *databa
 	return order.ID, nil
 }
 
-func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize uint64) ([]database.Order, int64, error) {
+func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize uint64, status string, orderBy string) ([]database.Order, int64, error) {
 	var orders []database.Order
 	var total int64
 	query := r.db.GetDb().WithContext(ctx).Model(&database.Order{}).Where("user_id = ?", userID)
+
+	// Filter By Order Status
+	if status != "" {
+		query = query.Where("order_status = ?", status)
+	}
+
+	if orderBy != "" {
+		query = query.Order(orderBy)
+	} else {
+		query = query.Order("created_at DESC")
+	}
 
 	// Count Total Records
 	if err := query.Count(&total).Error; err != nil {
@@ -44,13 +55,12 @@ func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID 
 
 	// Fetch orders with items preloaded
 	err := query.
-		Order("created_at DESC").
 		Limit(int(pageSize)).
 		Offset(int(offset)).
 		Preload("OrderItems", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at ASC")
 		}).
-		Preload("OrderItems.Product", nil).
+		Preload("OrderItems.Product").
 		Find(&orders).Error
 
 	if err != nil {
