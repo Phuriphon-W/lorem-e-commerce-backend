@@ -97,7 +97,16 @@ func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrd
 }
 
 func (h *orderHandlerImpl) GetOrders(ctx context.Context, input *dto.GetOrdersInputDto) (*dto.GetOrdersOutputDto, error) {
-	orders, total, err := h.orderRepository.GetOrdersByUserID(ctx, input.UserID, input.PageNumber, input.PageSize)
+	// Validate order input
+	var order string
+
+	if input.Order == "date_asc" {
+		order = "created_at ASC"
+	} else {
+		order = "created_at DESC"
+	}
+
+	orders, total, err := h.orderRepository.GetOrdersByUserID(ctx, input.UserID, input.PageNumber, input.PageSize, input.Status, order)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to retrieve orders", err)
 	}
