@@ -459,4 +459,15 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 		Tags:          []string{"Payment"},
 		DefaultStatus: http.StatusOK,
 	}, paymentHandler.CreateCheckoutSession)
+
+	// Get /api/payment/{userId}
+	huma.Register(api, huma.Operation{
+		OperationID:   "get-user-payments",
+		Method:        http.MethodGet,
+		Path:          "/payment/{userId}",
+		Summary:       "Get User Payments",
+		Description:   "Get User Payment History Records",
+		Tags:          []string{"Payment"},
+		DefaultStatus: http.StatusOK,
+	}, paymentHandler.GetUserPaymentsByUserID)
 }

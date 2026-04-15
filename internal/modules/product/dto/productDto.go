@@ -60,8 +60,8 @@ type (
 // Get Products
 type (
 	GetProductsInputDto struct {
-		PageNumber uint64 `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
-		PageSize   uint64 `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
+		PageNumber int64  `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
+		PageSize   int64  `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
 		Category   string `query:"category" doc:"Category of the product"`
 		Search     string `query:"search" doc:"Search Keyword (Name)"`
 		Order      string `query:"orderBy" doc:"Query Order Condition"`

@@ -31,8 +31,8 @@ func (r *productPostgresRepository) CreateProduct(ctx context.Context, product *
 
 func (r *productPostgresRepository) GetProducts(
 	ctx context.Context,
-	page uint64,
-	pageSize uint64,
+	page int64,
+	pageSize int64,
 	category string,
 	search string,
 	order string,

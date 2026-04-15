@@ -29,7 +29,7 @@ func (r *orderPostgresRepository) CreateOrder(ctx context.Context, order *databa
 	return order.ID, nil
 }
 
-func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize uint64, status string, orderBy string) ([]database.Order, int64, error) {
+func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, status string, orderBy string) ([]database.Order, int64, error) {
 	var orders []database.Order
 	var total int64
 	query := r.db.GetDb().WithContext(ctx).Model(&database.Order{}).Where("user_id = ?", userID)

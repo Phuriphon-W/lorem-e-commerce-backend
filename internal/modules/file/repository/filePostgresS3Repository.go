@@ -44,7 +44,7 @@ func (f *filePostgresS3Repository) GetFileMetaByID(ctx context.Context, fileID u
 	return &fileMeta, nil
 }
 
-func (f *filePostgresS3Repository) GetAllFilesMetadata(ctx context.Context, page uint64, pageSize uint64) ([]database.File, int64, error) {
+func (f *filePostgresS3Repository) GetAllFilesMetadata(ctx context.Context, page int64, pageSize int64) ([]database.File, int64, error) {
 	var filesMeta []database.File
 	var total int64
 	db := f.db.GetDb()

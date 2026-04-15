@@ -55,8 +55,8 @@ type (
 type (
 	GetOrdersInputDto struct {
 		UserID     uuid.UUID `path:"userId" required:"true" doc:"User ID"`
-		PageNumber uint64    `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
-		PageSize   uint64    `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
+		PageNumber int64     `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
+		PageSize   int64     `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
 		Status     string    `query:"status" doc:"Status of the Order"`
 		Order      string    `query:"orderBy" doc:"Ordering of the Orders"`
 	}
