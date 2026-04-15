@@ -55,9 +55,8 @@ func (h *paymentHandlerImpl) CreateCheckoutSession(ctx context.Context, input *d
 		return nil, huma.Error400BadRequest("Order is not in pending state")
 	}
 
-	// TODO: Edit to match actual frontend endpoint for checkout
-	successURL := config.GlobalConfig.FrontendURL + "/checkout/success?sessionId={CHECKOUT_SESSION_ID}"
-	cancelURL := config.GlobalConfig.FrontendURL + "/checkout/cancel"
+	successURL := config.GlobalConfig.FrontendURL + "/purchase"
+	cancelURL := config.GlobalConfig.FrontendURL + "/order"
 
 	// Ask the Gateway to create the session
 	checkoutURL, err := h.paymentGateway.CreateCheckoutSession(order, successURL, cancelURL)
@@ -161,6 +160,59 @@ func (h *paymentHandlerImpl) VerifySession(ctx context.Context, input *dto.Verif
 	return &dto.VerifySessionOutputDto{
 		Body: dto.VerifySessionOutputDtoBody{
 			Valid: true,
+		},
+	}, nil
+}
+
+func (h *paymentHandlerImpl) GetUserPaymentsByUserID(ctx context.Context, input *dto.GetPaymentsByUserIdInputDto) (*dto.GetPaymentsByUserIdOutputDto, error) {
+	var statusFilter string
+
+	switch input.Status {
+	case "pending":
+		statusFilter = "pending"
+	case "paid":
+		statusFilter = "paid"
+	default:
+		statusFilter = ""
+	}
+
+	var queryOrder string
+
+	if input.OrderBy == "date_asc" {
+		queryOrder = "created_at ASC"
+	} else {
+		queryOrder = "created_at DESC"
+	}
+
+	userPayments, total, err := h.paymentRepo.GetUserPaymentsByUserID(
+		ctx,
+		input.UserID,
+		input.PageNumber,
+		input.PageSize,
+		queryOrder,
+		statusFilter,
+	)
+
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve payment records", err)
+	}
+
+	payments := make([]dto.PaymentDto, len(userPayments))
+	for i, payment := range userPayments {
+		payments[i] = dto.PaymentDto{
+			ID:            payment.ID,
+			OrderID:       payment.OrderID,
+			PaymentMethod: payment.PaymentMethod,
+			PaymentAmount: payment.PaymentAmount,
+			PaymentStatus: payment.PaymentStatus,
+			CreatedAt:     payment.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	return &dto.GetPaymentsByUserIdOutputDto{
+		Body: dto.GetPaymentsByUserIdOutputDtoBody{
+			Payments: payments,
+			Total:    total,
 		},
 	}, nil
 }

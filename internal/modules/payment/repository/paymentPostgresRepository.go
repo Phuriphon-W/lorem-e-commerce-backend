@@ -43,3 +43,40 @@ func (r *paymentPostgresRepository) GetUserPaymentByOrderID(ctx context.Context,
 
 	return &payment, nil
 }
+
+func (r *paymentPostgresRepository) GetUserPaymentsByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, orderBy, status string) ([]database.Payment, int64, error) {
+	var payments []database.Payment
+	var total int64
+
+	query := r.db.GetDb().WithContext(ctx).Model(&database.Payment{}).Where("user_id = ?", userID)
+
+	// Filter By Status (Paid or Pending)
+	if status != "" {
+		query = query.Where("payment_status = ?", status)
+	}
+
+	// Count Total Records
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply Ordering
+	if orderBy == "" {
+		query = query.Order("created_at DESC") // Newest first by default
+	} else {
+		query = query.Order(orderBy)
+	}
+
+	offSet := (page - 1) * pageSize
+
+	err := query.
+		Limit(int(pageSize)).
+		Offset(int(offSet)).
+		Find(&payments).Error
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return payments, total, nil
+}
