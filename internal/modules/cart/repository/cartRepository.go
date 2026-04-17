@@ -13,5 +13,4 @@ type CartRepository interface {
 	GetCartItem(ctx context.Context, cartId, productId uuid.UUID) (*database.CartItem, error)
 	EditCartItem(ctx context.Context, cartId uuid.UUID, productId uuid.UUID, quantity uint) error
 	RemoveCartItems(ctx context.Context, cartId uuid.UUID, productIds []uuid.UUID) error
-	GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error)
 }

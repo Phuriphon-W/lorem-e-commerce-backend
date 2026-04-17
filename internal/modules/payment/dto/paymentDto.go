@@ -1,6 +1,8 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type PaymentDto struct {
 	ID            uuid.UUID `json:"id" doc:"Payment ID"`
@@ -14,8 +16,8 @@ type PaymentDto struct {
 // Create Checkout Session
 type (
 	CreateCheckoutInputDtoBody struct {
-		OrderID uuid.UUID `json:"orderId" required:"true" doc:"ID of the order to pay for"`
 		UserID  uuid.UUID `json:"userId" required:"true" doc:"ID of the user who make checkout"`
+		OrderID uuid.UUID `json:"orderId" required:"true" doc:"ID of the order to pay"`
 	}
 
 	CreateCheckoutInputDto struct {

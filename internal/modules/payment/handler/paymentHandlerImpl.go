@@ -7,6 +7,8 @@ import (
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	orderRepository "lorem-backend/internal/modules/order/repository"
+	productRepository "lorem-backend/internal/modules/product/repository"
+
 	"lorem-backend/internal/modules/payment/dto"
 	"lorem-backend/internal/modules/payment/gateway"
 	"lorem-backend/internal/modules/payment/repository"
@@ -17,75 +19,54 @@ import (
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"gorm.io/gorm"
 )
 
 type paymentHandlerImpl struct {
 	paymentRepo    repository.PaymentRepository
 	orderRepo      orderRepository.OrderRepository
+	productRepo    productRepository.ProductRepository
 	paymentGateway gateway.PaymentGateway
 }
 
 func NewPaymentHandlerImpl(
 	payRepo repository.PaymentRepository,
 	ordRepo orderRepository.OrderRepository,
+	productRepo productRepository.ProductRepository,
 	payGateway gateway.PaymentGateway,
 ) PaymentHandler {
 	return &paymentHandlerImpl{
 		paymentRepo:    payRepo,
 		orderRepo:      ordRepo,
+		productRepo:    productRepo,
 		paymentGateway: payGateway,
 	}
 }
 
 func (h *paymentHandlerImpl) CreateCheckoutSession(ctx context.Context, input *dto.CreateCheckoutInputDto) (*dto.CreateCheckoutOutputDto, error) {
-	// Get order to proceed payment
+	// Fetch the existing order
 	order, err := h.orderRepo.GetOrderByID(ctx, input.Body.OrderID)
 	if err != nil {
-		return nil, huma.Error404NotFound("Order not found", err)
+		return nil, huma.Error404NotFound("Order not found")
 	}
 
-	// Check if the order belongs to the user who made request
+	// Verify the order belongs to the user and is still pending
 	if order.UserID != input.Body.UserID {
-		return nil, huma.Error403Forbidden("You are not allowed to make payment for this order")
+		return nil, huma.Error403Forbidden("This order does not belong to you")
 	}
 
-	// Check order state
 	if order.OrderStatus != database.Pending {
-		return nil, huma.Error400BadRequest("Order is not in pending state")
+		return nil, huma.Error400BadRequest("Order is not in a payable state")
 	}
 
+	// TODO: Change the url to frontend success page
 	successURL := config.GlobalConfig.FrontendURL + "/purchase"
 	cancelURL := config.GlobalConfig.FrontendURL + "/order"
 
 	// Ask the Gateway to create the session
-	checkoutURL, err := h.paymentGateway.CreateCheckoutSession(order, successURL, cancelURL)
+	checkoutURL, err := h.paymentGateway.CreateCheckoutSession(order.ID, order.TotalPrice, successURL, cancelURL)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to initialize payment gateway", err)
 	}
-
-	// Check if the payment for this order already exist (pending)
-	_, err = h.paymentRepo.GetUserPaymentByOrderID(ctx, input.Body.OrderID, input.Body.UserID)
-	if err != nil {
-		// Error cause by record does not exists, create a new one
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			payment := &database.Payment{
-				OrderID:       order.ID,
-				UserID:        order.UserID,
-				PaymentMethod: "Card",
-				PaymentAmount: float64(order.TotalPrice),
-				PaymentStatus: "pending",
-			}
-			_, createErr := h.paymentRepo.CreatePayment(ctx, payment)
-			if createErr != nil {
-				return nil, huma.Error500InternalServerError("Error Creating Payment", createErr)
-			}
-		} else {
-			// Other internal error
-			return nil, huma.Error500InternalServerError("Error occurred while checking payment", err)
-		}
-	}
-	// Note: If err == nil, the payment ALREADY exists. We do nothing,
 
 	// Return the secure URL to the frontend
 	return &dto.CreateCheckoutOutputDto{
@@ -102,7 +83,7 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 
 	// Checks webhook coming from allowed IP
 	if !slices.Contains(utils.AllowedStripeIPs[:], ipFromStripeWebhook) {
-		return c.String(http.StatusForbidden, "IP not allowed")
+		return c.JSON(http.StatusForbidden, utils.CreateErrorResponse(http.StatusForbidden, "IP Not Allowed"))
 	}
 
 	const MaxBodyBytes = int64(65536)
@@ -110,35 +91,78 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 
 	payload, err := io.ReadAll(req.Body)
 	if err != nil {
-		return c.String(http.StatusServiceUnavailable, "Error reading request body")
+		return c.JSON(http.StatusBadRequest, utils.CreateErrorResponse(http.StatusForbidden, "Error reading request body"))
 	}
 
 	// Ask the Gateway to verify and parse the webhook
-	orderIDStr, err := h.paymentGateway.ExtractOrderIDFromWebhook(payload, c)
+	orderIDStr, paymentStatus, err := h.paymentGateway.ExtractOrderEventFromWebhook(payload, c)
 	if err != nil {
+		// Error is due to ignored event. Skip it
 		if errors.Is(err, gateway.ErrUnhandledWebhookEvent) {
-			// It's a valid webhook, but we don't care about this event type. Safely ignore.
 			return c.NoContent(http.StatusOK)
 		}
-		return c.String(http.StatusBadRequest, err.Error())
+		return c.JSON(http.StatusBadRequest, utils.CreateErrorResponse(http.StatusBadRequest, err.Error()))
 	}
 
 	// Parse the returned ID
 	parsedOrderID, err := uuid.Parse(orderIDStr)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Invalid order ID in metadata")
+		return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Invalid order ID in metadata"))
 	}
 
-	// Update internal Database
 	ctx := req.Context()
-	err = h.paymentRepo.UpdatePaymentStatusByOrderID(ctx, parsedOrderID, "paid")
+
+	// Fetch the Order to get user info, total price, and items
+	order, err := h.orderRepo.GetOrderByID(ctx, parsedOrderID)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Database error")
+		return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Failed to retrieve order details"))
 	}
 
+	// IDEMPOTENCY CHECK: If Stripe sends this webhook twice, don't process it again
+	if order.OrderStatus != database.Pending {
+		return c.NoContent(http.StatusOK)
+	}
+
+	// Stripe failed
+	if paymentStatus == "failed" {
+		// Revert stock
+		additions := make([]productRepository.StockDeduction, len(order.OrderItems))
+		for i, item := range order.OrderItems {
+			additions[i] = productRepository.StockDeduction{
+				ProductID: item.ProductID,
+				Quantity:  item.Quantity,
+			}
+		}
+
+		_ = h.productRepo.AddProductStocks(ctx, additions)
+
+		// Mark order as failed
+		err = h.orderRepo.UpdateOrderStatus(ctx, parsedOrderID, database.Failed)
+		if err != nil {
+			return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Failed to update order to failed status"))
+		}
+		return c.NoContent(http.StatusOK)
+	}
+
+	// Stripe succeed
+	payment := &database.Payment{
+		OrderID:       order.ID,
+		UserID:        order.UserID,
+		PaymentMethod: "card",
+		PaymentAmount: float64(order.TotalPrice),
+		PaymentStatus: "paid",
+	}
+
+	// Create payment
+	_, createErr := h.paymentRepo.CreatePayment(ctx, payment)
+	if createErr != nil {
+		return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Error creating payment record"))
+	}
+
+	// Mark as paid
 	err = h.orderRepo.UpdateOrderStatus(ctx, parsedOrderID, database.Paid)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Database error")
+		return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Database error updating order to shipping"))
 	}
 
 	return c.NoContent(http.StatusOK)

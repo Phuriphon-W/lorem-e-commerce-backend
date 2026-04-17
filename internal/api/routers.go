@@ -111,9 +111,9 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	registerCategoryRoute(protected, db)
 	registerProductRoute(protected, fileRepository, productRepository)
 	registerFileRoute(protected, public, fileRepository)
-	registerCartRoute(protected, db, fileRepository)
+	registerCartRoute(protected, db, fileRepository, productRepository)
 	registerOrderRoute(protected, orderRepository, productRepository, fileRepository)
-	registerPaymentRoute(protected, e, db, orderRepository)
+	registerPaymentRoute(protected, e, db, orderRepository, productRepository)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -342,9 +342,9 @@ func registerFileRoute(protected huma.API, public huma.API, fileRepository fileR
 	}, fileHandler.GetAllFilesMetadata)
 }
 
-func registerCartRoute(api huma.API, db database.Database, fileRepository fileRepo.FileRepository) {
+func registerCartRoute(api huma.API, db database.Database, fileRepository fileRepo.FileRepository, productRepository productRepo.ProductRepository) {
 	repo := cartRepo.NewCartPostgresRepository(db)
-	handler := cartHandler.NewCartHandler(repo, fileRepository)
+	handler := cartHandler.NewCartHandler(repo, fileRepository, productRepository)
 
 	// GET /user/{id}/cart
 	huma.Register(api, huma.Operation{
@@ -436,13 +436,13 @@ func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodR
 	}, orderHandler.UpdateOrderStatus)
 }
 
-func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository) {
+func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository, productRepo productRepo.ProductRepository) {
 	// Init Stripe gateway
 	stripeGateway := gateway.NewStripePaymentGateway(config.GlobalConfig.StripeSecretKey, config.GlobalConfig.StripeWebhookSecret)
 
 	// Init Payment Repository and Handler
 	paymentRepository := paymentRepo.NewPaymentPostgresRepository(db)
-	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, stripeGateway)
+	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway)
 
 	// Register Webhook directly via Echo
 	// POST /api/webhook/stripe
