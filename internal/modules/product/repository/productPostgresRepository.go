@@ -2,14 +2,21 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"lorem-backend/internal/database"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type productPostgresRepository struct {
 	db database.Database
+}
+
+type StockDeduction struct {
+	ProductID uuid.UUID
+	Quantity  uint
 }
 
 func NewProductPostgresRepository(db database.Database) ProductRepository {
@@ -107,4 +114,69 @@ func (r *productPostgresRepository) GetProductsByIDs(ctx context.Context, produc
 	}
 
 	return products, nil
+}
+
+func (r *productPostgresRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
+	var product database.Product
+	err := r.db.GetDb().WithContext(ctx).
+		Select("available").
+		Where("id = ?", productId).
+		First(&product).Error
+
+	if err != nil {
+		return 0, err
+	}
+
+	return product.Available, nil
+}
+
+func (r *productPostgresRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
+	return r.db.GetDb().WithContext(ctx).
+		Model(&database.Product{}).
+		Where("id = ?", productID).
+		Updates(updateData).Error
+}
+
+func (r *productPostgresRepository) DeductProductStocks(ctx context.Context, deductions []StockDeduction) error {
+	return r.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range deductions {
+			var product database.Product
+			// Lock the row and check stock
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", item.ProductID).First(&product).Error; err != nil {
+				return err
+			}
+
+			if product.Available < item.Quantity {
+				return fmt.Errorf("insufficient stock for product %s: requested %d, available %d", item.ProductID, item.Quantity, product.Available)
+			}
+
+			// Perform the safe mathematical deduction
+			err := tx.Model(&database.Product{}).
+				Where("id = ?", item.ProductID).
+				Update("available", gorm.Expr("available - ?", item.Quantity)).Error
+
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+}
+
+func (r *productPostgresRepository) AddProductStocks(ctx context.Context, additions []StockDeduction) error {
+	return r.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, item := range additions {
+			// Increment the stock safely
+			err := tx.Model(&database.Product{}).
+				Where("id = ?", item.ProductID).
+				Update("available", gorm.Expr("available + ?", item.Quantity)).Error
+
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }

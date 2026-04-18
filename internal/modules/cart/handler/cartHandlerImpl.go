@@ -10,19 +10,22 @@ import (
 	"lorem-backend/internal/modules/cart/repository"
 	catDto "lorem-backend/internal/modules/category/dto"
 	fileRepo "lorem-backend/internal/modules/file/repository"
+	productRepo "lorem-backend/internal/modules/product/repository"
 
 	"github.com/danielgtaylor/huma/v2"
 )
 
 type cartHandlerImpl struct {
-	cartRepo repository.CartRepository
-	fileRepo fileRepo.ObjectStorage
+	cartRepo    repository.CartRepository
+	productRepo productRepo.ProductRepository
+	fileRepo    fileRepo.ObjectStorage
 }
 
-func NewCartHandler(cartRepo repository.CartRepository, fileRepo fileRepo.FileRepository) CartHandler {
+func NewCartHandler(cartRepo repository.CartRepository, fileRepo fileRepo.FileRepository, productRepo productRepo.ProductRepository) CartHandler {
 	return &cartHandlerImpl{
-		cartRepo: cartRepo,
-		fileRepo: fileRepo,
+		cartRepo:    cartRepo,
+		fileRepo:    fileRepo,
+		productRepo: productRepo,
 	}
 }
 
@@ -51,7 +54,7 @@ func (h *cartHandlerImpl) GetCartByUserId(ctx context.Context, input *dto.GetCar
 			}
 
 			// get available in stock
-			available, err := h.cartRepo.GetProductStock(ctx, item.ProductID)
+			available, err := h.productRepo.GetProductStock(ctx, item.ProductID)
 			if err != nil {
 				fmt.Printf("Error getting available amount for product with id: %v", item.ProductID)
 				available = 0
@@ -93,7 +96,7 @@ func (h *cartHandlerImpl) CreateCartItem(ctx context.Context, input *dto.CreateC
 	}
 
 	// Fetch actual product stock
-	availableStock, err := h.cartRepo.GetProductStock(ctx, input.Body.ProductID)
+	availableStock, err := h.productRepo.GetProductStock(ctx, input.Body.ProductID)
 	if err != nil {
 		return nil, huma.Error404NotFound("Product not found", err)
 	}

@@ -71,17 +71,3 @@ func (c *cartPostgresRepository) RemoveCartItems(ctx context.Context, cartId uui
 		Where("cart_id = ? AND product_id IN ?", cartId, productIds).
 		Delete(&database.CartItem{}).Error
 }
-
-func (c *cartPostgresRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
-	var product database.Product
-	err := c.db.GetDb().WithContext(ctx).
-		Select("available").
-		Where("id = ?", productId).
-		First(&product).Error
-
-	if err != nil {
-		return 0, err
-	}
-
-	return product.Available, nil
-}

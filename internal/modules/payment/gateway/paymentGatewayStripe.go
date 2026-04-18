@@ -3,8 +3,10 @@ package gateway
 import (
 	"encoding/json"
 	"errors"
-	"lorem-backend/internal/database"
+	"lorem-backend/internal/config"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/checkout/session"
@@ -25,8 +27,8 @@ func NewStripePaymentGateway(secretKey string, webhookSecret string) PaymentGate
 	}
 }
 
-func (s *stripePaymentGateway) CreateCheckoutSession(order *database.Order, successURL, cancelURL string) (string, error) {
-	amountInCents := int64(order.TotalPrice * 100)
+func (s *stripePaymentGateway) CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, error) {
+	amountInCents := int64(totalPrice * 100)
 
 	params := &stripe.CheckoutSessionParams{
 		PaymentMethodTypes: stripe.StringSlice([]string{"card"}),
@@ -35,7 +37,7 @@ func (s *stripePaymentGateway) CreateCheckoutSession(order *database.Order, succ
 				PriceData: &stripe.CheckoutSessionLineItemPriceDataParams{
 					Currency: stripe.String("usd"),
 					ProductData: &stripe.CheckoutSessionLineItemPriceDataProductDataParams{
-						Name: stripe.String("Order #" + order.ID.String()[:8]),
+						Name: stripe.String("Order #" + orderID.String()[:8]),
 					},
 					UnitAmount: stripe.Int64(amountInCents),
 				},
@@ -45,9 +47,10 @@ func (s *stripePaymentGateway) CreateCheckoutSession(order *database.Order, succ
 		Mode:       stripe.String(string(stripe.CheckoutSessionModePayment)),
 		SuccessURL: stripe.String(successURL),
 		CancelURL:  stripe.String(cancelURL),
+		ExpiresAt:  stripe.Int64(time.Now().Add(config.GlobalConfig.StripeSessionExpire).Unix()),
 	}
 
-	params.AddMetadata("order_id", order.ID.String())
+	params.AddMetadata("order_id", orderID.String())
 
 	stripeSession, err := session.New(params)
 	if err != nil {
@@ -57,7 +60,7 @@ func (s *stripePaymentGateway) CreateCheckoutSession(order *database.Order, succ
 	return stripeSession.URL, nil
 }
 
-func (s *stripePaymentGateway) ExtractOrderIDFromWebhook(payload []byte, c echo.Context) (string, error) {
+func (s *stripePaymentGateway) ExtractOrderEventFromWebhook(payload []byte, c echo.Context) (string, string, error) {
 	signatureHeader := c.Request().Header.Get("Stripe-Signature")
 
 	event, err := webhook.ConstructEventWithOptions(
@@ -69,23 +72,27 @@ func (s *stripePaymentGateway) ExtractOrderIDFromWebhook(payload []byte, c echo.
 		},
 	)
 	if err != nil {
-		return "", errors.New("invalid signature")
+		return "", "", errors.New("invalid signature")
 	}
+
+	// Extract the session data
+	var session stripe.CheckoutSession
+	if err := json.Unmarshal(event.Data.Raw, &session); err != nil {
+		return "", "", errors.New("error parsing webhook JSON")
+	}
+
+	orderIDStr := session.Metadata["order_id"]
 
 	switch event.Type {
 	case "checkout.session.completed":
-		var session stripe.CheckoutSession
-		err := json.Unmarshal(event.Data.Raw, &session)
-		if err != nil {
-			return "", errors.New("error parsing webhook JSON")
-		}
+		return orderIDStr, "success", nil
 
-		orderIDStr := session.Metadata["order_id"]
-		return orderIDStr, nil
+	case "checkout.session.expired", "checkout.session.async_payment_failed":
+		return orderIDStr, "failed", nil
 
 	default:
-		// We safely ignore events we don't care about
-		return "", ErrUnhandledWebhookEvent
+		// Safely ignore events we don't care about
+		return "", "", ErrUnhandledWebhookEvent
 	}
 }
 

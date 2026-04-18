@@ -55,14 +55,10 @@ func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrd
 
 	var totalPrice float32
 	var orderItems []database.OrderItem
+	var deductions []productRepo.StockDeduction
 
 	for _, product := range products {
 		requestedQty := itemMap[product.ID]
-
-		// Check stock safely
-		if product.Available < requestedQty {
-			return nil, huma.Error400BadRequest(fmt.Sprintf("Insufficient stock for product: %s", product.Name))
-		}
 
 		// Calculate total
 		priceAtPurchase := product.Price
@@ -74,6 +70,17 @@ func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrd
 			PriceAtPurchase: priceAtPurchase,
 			Quantity:        requestedQty,
 		})
+
+		// Build deduction
+		deductions = append(deductions, productRepo.StockDeduction{
+			ProductID: product.ID,
+			Quantity:  requestedQty,
+		})
+	}
+
+	// Deduct stock
+	if err := h.productRepository.DeductProductStocks(ctx, deductions); err != nil {
+		return nil, huma.Error400BadRequest(err.Error())
 	}
 
 	// Build and save the final order
@@ -86,6 +93,8 @@ func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrd
 
 	oid, err := h.orderRepository.CreateOrder(ctx, order)
 	if err != nil {
+		// Revert stock if order creation fails
+		_ = h.productRepository.AddProductStocks(ctx, deductions)
 		return nil, huma.Error500InternalServerError("Failed to create order", err)
 	}
 
