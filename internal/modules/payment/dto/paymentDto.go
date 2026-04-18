@@ -60,8 +60,8 @@ type (
 	}
 
 	GetPaymentsByUserIdOutputDtoBody struct {
-		Payments []PaymentDto
-		Total    int64
+		Payments []PaymentDto `json:"payments"`
+		Total    int64        `json:"total"`
 	}
 
 	GetPaymentsByUserIdOutputDto struct {
