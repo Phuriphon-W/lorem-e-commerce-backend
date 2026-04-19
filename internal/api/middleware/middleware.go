@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/labstack/echo/v4"
 )
 
 func VerifyToken(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
@@ -29,6 +30,26 @@ func VerifyToken(api huma.API) func(ctx huma.Context, next func(huma.Context)) {
 
 		// Continue to the next function
 		next(newHumaCtx)
+	}
+}
+
+func VerifyTokenEcho(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		cookie, err := c.Cookie("authToken")
+		if err != nil {
+			return c.JSON(http.StatusUnauthorized, utils.CreateErrorResponse(http.StatusUnauthorized, "Unauthorized"))
+		}
+
+		claims, err := utils.VerifyJWT(cookie.Value, config.GlobalConfig.JWTSecret)
+		if err != nil {
+			return c.JSON(http.StatusForbidden, utils.CreateErrorResponse(http.StatusForbidden, "Forbidden"))
+		}
+
+		// Set the userID in the standard Echo context
+		userID := claims["id"].(string)
+		c.Set("userID", userID)
+
+		return next(c)
 	}
 }
 

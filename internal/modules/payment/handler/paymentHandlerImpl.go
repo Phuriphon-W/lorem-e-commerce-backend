@@ -3,11 +3,13 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	orderRepository "lorem-backend/internal/modules/order/repository"
 	productRepository "lorem-backend/internal/modules/product/repository"
+	"lorem-backend/internal/websocket/manager"
 
 	"lorem-backend/internal/modules/payment/dto"
 	"lorem-backend/internal/modules/payment/gateway"
@@ -26,6 +28,7 @@ type paymentHandlerImpl struct {
 	orderRepo      orderRepository.OrderRepository
 	productRepo    productRepository.ProductRepository
 	paymentGateway gateway.PaymentGateway
+	wsManager      manager.WsManager
 }
 
 func NewPaymentHandlerImpl(
@@ -33,12 +36,14 @@ func NewPaymentHandlerImpl(
 	ordRepo orderRepository.OrderRepository,
 	productRepo productRepository.ProductRepository,
 	payGateway gateway.PaymentGateway,
+	wsManager manager.WsManager,
 ) PaymentHandler {
 	return &paymentHandlerImpl{
 		paymentRepo:    payRepo,
 		orderRepo:      ordRepo,
 		productRepo:    productRepo,
 		paymentGateway: payGateway,
+		wsManager:      wsManager,
 	}
 }
 
@@ -59,9 +64,8 @@ func (h *paymentHandlerImpl) CreateCheckoutSession(ctx context.Context, input *d
 	}
 
 	// TODO: Change the url to frontend success page
-	successURL := config.GlobalConfig.FrontendURL + "/purchase"
-	cancelURL := config.GlobalConfig.FrontendURL + "/order"
-
+	successURL := config.GlobalConfig.FrontendURL + "/payment-status?session_id={CHECKOUT_SESSION_ID}"
+	cancelURL := config.GlobalConfig.FrontendURL + "/payment-status?canceled=true"
 	// Ask the Gateway to create the session
 	checkoutURL, err := h.paymentGateway.CreateCheckoutSession(order.ID, order.TotalPrice, successURL, cancelURL)
 	if err != nil {
@@ -141,6 +145,11 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 		if err != nil {
 			return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Failed to update order to failed status"))
 		}
+
+		// Send socket notification (failed)
+		msg := fmt.Sprintf(`{"type": "payment_update", "status": "failed", "orderId": "%s"}`, order.ID.String())
+		h.wsManager.SendToUser(order.UserID, []byte(msg))
+
 		return c.NoContent(http.StatusOK)
 	}
 
@@ -164,6 +173,10 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Database error updating order to shipping"))
 	}
+
+	// Send socket notification (success)
+	msg := fmt.Sprintf(`{"type": "payment_update", "status": "success", "orderId": "%s"}`, order.ID.String())
+	h.wsManager.SendToUser(order.UserID, []byte(msg))
 
 	return c.NoContent(http.StatusOK)
 }

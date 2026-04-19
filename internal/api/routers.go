@@ -21,6 +21,8 @@ import (
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
 	userRepo "lorem-backend/internal/modules/user/repository"
+	"lorem-backend/internal/websocket"
+	"lorem-backend/internal/websocket/manager"
 	"net/http"
 	"time"
 
@@ -107,13 +109,18 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	// Init order repository
 	orderRepository := orderRepo.NewOrderPostgresRepository(db)
 
+	// Init socket
+	wsManager := manager.NewWsManagerImpl()
+	wsHandler := websocket.NewGorillaWs(wsManager)
+	e.GET("/api/ws", wsHandler.HandleConnection, loremMiddleware.VerifyTokenEcho)
+
 	registerUserRoute(protected, db)
 	registerCategoryRoute(protected, db)
 	registerProductRoute(protected, fileRepository, productRepository)
 	registerFileRoute(protected, public, fileRepository)
 	registerCartRoute(protected, db, fileRepository, productRepository)
 	registerOrderRoute(protected, orderRepository, productRepository, fileRepository)
-	registerPaymentRoute(protected, e, db, orderRepository, productRepository)
+	registerPaymentRoute(protected, e, db, orderRepository, productRepository, wsManager)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
@@ -436,13 +443,13 @@ func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodR
 	}, orderHandler.UpdateOrderStatus)
 }
 
-func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository, productRepo productRepo.ProductRepository) {
+func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository, productRepo productRepo.ProductRepository, wsManager manager.WsManager) {
 	// Init Stripe gateway
 	stripeGateway := gateway.NewStripePaymentGateway(config.GlobalConfig.StripeSecretKey, config.GlobalConfig.StripeWebhookSecret)
 
 	// Init Payment Repository and Handler
 	paymentRepository := paymentRepo.NewPaymentPostgresRepository(db)
-	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway)
+	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway, wsManager)
 
 	// Register Webhook directly via Echo
 	// POST /api/webhook/stripe
@@ -470,4 +477,15 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 		Tags:          []string{"Payment"},
 		DefaultStatus: http.StatusOK,
 	}, paymentHandler.GetUserPaymentsByUserID)
+
+	// GET /api/payment
+	huma.Register(api, huma.Operation{
+		OperationID:   "verify-payment-session",
+		Method:        http.MethodGet,
+		Path:          "/payment",
+		Summary:       "Verify Payment Session",
+		Description:   "Verify whether the payment session has been paid or not",
+		Tags:          []string{"Payment"},
+		DefaultStatus: http.StatusOK,
+	}, paymentHandler.VerifySession)
 }

@@ -11,4 +11,5 @@ type PaymentHandler interface {
 	CreateCheckoutSession(ctx context.Context, input *dto.CreateCheckoutInputDto) (*dto.CreateCheckoutOutputDto, error)
 	HandleStripeWebhook(c echo.Context) error
 	GetUserPaymentsByUserID(ctx context.Context, input *dto.GetPaymentsByUserIdInputDto) (*dto.GetPaymentsByUserIdOutputDto, error)
+	VerifySession(ctx context.Context, input *dto.VerifySessionInputDto) (*dto.VerifySessionOutputDto, error)
 }
