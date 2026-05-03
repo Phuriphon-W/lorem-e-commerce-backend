@@ -43,7 +43,7 @@ func LoadConfig() {
 	viper.SetDefault("DB_PORT", 5433)
 	viper.SetDefault("JWT_EXPIRE", "24h")
 	viper.SetDefault("FRONTEND_URL", "http://localhost:3000")
-	viper.SetDefault("AWS_REGION", "us-east-1")
+	viper.SetDefault("AWS_REGION", "ap-southeast-1")
 	viper.SetDefault("STRIPE_SESSION_EXPIRE", "30m")
 
 	// Read the file

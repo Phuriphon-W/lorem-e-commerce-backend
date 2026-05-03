@@ -11,7 +11,7 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - lorem-volume:/var/lib/postgresql/data
+      - lorem-volume:/var/lib/postgresql
   dbeaver:
     image: dbeaver/cloudbeaver:25.3.4
     container_name: dbeaver
