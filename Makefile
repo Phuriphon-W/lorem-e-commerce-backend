@@ -37,5 +37,11 @@ db-restart: db-down db-up
 db-clean:
 	docker compose -f docker-compose.db.yml down --rmi all -v --remove-orphans
 
+lint:
+	go fmt ./...
+	go vet ./...
+
 test:
 	go test -v ./internal/...
+
+pre-commit: lint test
