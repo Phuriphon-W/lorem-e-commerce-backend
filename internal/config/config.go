@@ -46,6 +46,15 @@ func LoadConfig() {
 	viper.SetDefault("AWS_REGION", "ap-southeast-1")
 	viper.SetDefault("STRIPE_SESSION_EXPIRE", "30m")
 
+	// Set empty defaults for required secrets so Viper unmarshals them from ENV
+	viper.SetDefault("JWT_SECRET", "")
+	viper.SetDefault("S3_URL", "")
+	viper.SetDefault("BUCKET_NAME", "")
+	viper.SetDefault("AWS_ACCESS_KEY", "")
+	viper.SetDefault("AWS_SECRET_KEY", "")
+	viper.SetDefault("STRIPE_SECRET_KEY", "")
+	viper.SetDefault("STRIPE_WEBHOOK_SECRET", "")
+
 	// Read the file
 	if err := viper.ReadInConfig(); err != nil {
 		log.Printf("Warning: No .env file found, using defaults and system env")
