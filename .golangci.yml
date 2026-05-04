@@ -1,5 +1,0 @@
-run:
-  # The default timeout is 1m, which is sometimes too short.
-  timeout: 5m
-  # Override the go version from go.mod to fix the golangci-lint version mismatch error
-  go: '1.24'
