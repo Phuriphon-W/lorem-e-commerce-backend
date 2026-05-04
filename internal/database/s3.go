@@ -24,9 +24,14 @@ func ConnectS3(s3Endpoint, region, accessKey, secretKey string) (*s3.Client, err
 	}
 
 	client := s3.NewFromConfig(sdkConfig, func(opt *s3.Options) {
-		opt.BaseEndpoint = aws.String(s3Endpoint)
-		opt.UsePathStyle = true
 		opt.Region = region
+		
+		// If an explicit endpoint is provided, use it. 
+		// (Useful for SeaweedFS, MinIO, or LocalStack)
+		if s3Endpoint != "" {
+			opt.BaseEndpoint = aws.String(s3Endpoint)
+			opt.UsePathStyle = true
+		}
 	})
 
 	log.Println("Created a new S3 clients and connected to", s3Endpoint)

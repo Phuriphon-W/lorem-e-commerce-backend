@@ -1,0 +1,15 @@
+services:
+  backend:
+    build:
+      context: .
+      target: prod
+    container_name: lorem-backend-prod
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+include:
+  - docker-compose.db.yml
