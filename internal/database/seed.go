@@ -131,7 +131,7 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 	staticImages := []string{
 		"auth-banner.jpg",
 		"hero/hero.jpg",
-		"hero/hero-sm.jpg",
+		"hero-sm.jpg",
 		"home-apparel.jpg",
 		"home-accessory.jpg",
 		"apparelSlide1.jpg",
