@@ -27,6 +27,7 @@ func (f *fileHandlerImpl) UploadFile(ctx context.Context, input *dto.UploadFileI
 	file := formData.File
 	objKey := formData.ObjectBaseKey
 
+	// objKey/unixTime-filename (Add unix time prefix to prevent name collision)
 	putKey := fmt.Sprintf("%v/%v-%v", objKey, time.Now().Unix(), file.Filename)
 
 	// Upload to S3

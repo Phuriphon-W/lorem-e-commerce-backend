@@ -7,7 +7,7 @@ dev-down:
 dev-restart: dev-down dev-up
 
 dev-logs:
-	docker logs $(shell docker ps -q -f "name=lorem-backend")
+	docker logs -f $(shell docker ps -q -f "name=lorem-backend")
 
 dev-clean:
 	docker compose -f docker-compose.dev.yml down --rmi all -v --remove-orphans
@@ -21,7 +21,7 @@ prod-down:
 prod-restart: prod-down prod-up
 
 prod-logs:
-	docker logs $(shell docker ps -q -f "name=lorem-backend")
+	docker logs -f $(shell docker ps -q -f "name=lorem-backend")
 
 prod-clean:
 	docker compose -f docker-compose.prod.yml down --rmi all -v --remove-orphans
@@ -36,6 +36,9 @@ db-restart: db-down db-up
 
 db-clean:
 	docker compose -f docker-compose.db.yml down --rmi all -v --remove-orphans
+
+seed-db:
+	powershell -Command "$$env:DB_HOST='localhost'; $$env:DB_PORT=5433; go run ./cmd/seed/main.go"
 
 lint:
 	go fmt ./...
