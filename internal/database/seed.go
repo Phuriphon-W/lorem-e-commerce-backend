@@ -1,73 +1,168 @@
 package database
 
 import (
+	"context"
 	"fmt"
+	"mime/multipart"
+	"os"
+	"path/filepath"
+	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-func SeedDatabase(db *gorm.DB) error {
-	// 1. Define 5 Categories
+type SeedFileRepository interface {
+	UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error)
+	CreateFileMeta(ctx context.Context, fileMeta *File) (uuid.UUID, error)
+}
+
+type seedData struct {
+	CategoryName string
+	Name         string
+	Description  string
+	Price        float32
+	Available    uint
+	ImageFile    string
+}
+
+func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository) error {
+	// 1. Define 2 Categories
 	categories := []Category{
-		{Name: "Electronics"},    // Index 0
-		{Name: "Home & Kitchen"}, // Index 1
-		{Name: "Stationery"},     // Index 2
-		{Name: "Fitness"},        // Index 3
-		{Name: "Personal Care"},  // Index 4
+		{Name: "Apparel"},   // Index 0
+		{Name: "Accessory"}, // Index 1
 	}
+
+	categoryMap := make(map[string]uuid.UUID)
 
 	for i := range categories {
 		err := db.Where(Category{Name: categories[i].Name}).FirstOrCreate(&categories[i]).Error
 		if err != nil {
 			return fmt.Errorf("could not seed category %s: %v", categories[i].Name, err)
 		}
+		categoryMap[categories[i].Name] = categories[i].ID
 	}
 
-	// 2. Define 25 Products (5 per category)
-	products := []Product{
-		// --- Electronics ---
-		{Name: "Mechanical Keyboard", Description: "RGB Backlit Blue Switches", Price: 89.99, Available: 50, ImageObjKey: "products/keyboard.jpg", CategoryID: categories[0].ID},
-		{Name: "Gaming Mouse", Description: "16000 DPI Optical Sensor", Price: 45.50, Available: 80, ImageObjKey: "products/mouse.jpg", CategoryID: categories[0].ID},
-		{Name: "Noise Cancelling Headphones", Description: "Wireless Over-ear", Price: 199.00, Available: 30, ImageObjKey: "products/headphones.jpg", CategoryID: categories[0].ID},
-		{Name: "USB-C Hub", Description: "7-in-1 Aluminum Adapter", Price: 35.00, Available: 120, ImageObjKey: "products/hub.jpg", CategoryID: categories[0].ID},
-		{Name: "Monitor Stand", Description: "Adjustable height with drawer", Price: 29.99, Available: 40, ImageObjKey: "products/stand.jpg", CategoryID: categories[0].ID},
+	// 2. Define Products
+	productsData := []seedData{
+		// --- Apparel ---
+		{"Apparel", "Classic Cotton T-Shirt", "100% Organic Cotton, Crew Neck", 19.99, 200, "apparel/t-shirt.jpg"},
+		{"Apparel", "Fleece Pullover Hoodie", "Heavyweight warm fleece", 49.50, 85, "apparel/hoodie.jpg"},
+		{"Apparel", "Slim Fit Jeans", "Stretch denim, dark wash", 59.99, 120, "apparel/jeans.jpg"},
+		{"Apparel", "Denim Jacket", "Vintage wash trucker jacket", 75.00, 40, "apparel/denim-jacket.jpg"},
+		{"Apparel", "Knit Crewneck Sweater", "Merino wool blend", 65.00, 60, "apparel/sweater.jpg"},
+		{"Apparel", "Athletic Shorts", "Breathable mesh with pockets", 25.00, 150, "apparel/athletic-shorts.jpg"},
+		{"Apparel", "Polo Shirt", "Pique cotton short sleeve", 35.00, 110, "apparel/polo-shirt.jpg"},
+		{"Apparel", "Jogger Sweatpants", "Tapered fit with drawstring", 39.99, 95, "apparel/jogger-sweatpants.jpg"},
 
-		// --- Home & Kitchen ---
-		{Name: "Air Fryer", Description: "5L Digital Touch Screen", Price: 120.50, Available: 15, ImageObjKey: "products/airfryer.jpg", CategoryID: categories[1].ID},
-		{Name: "Electric Kettle", Description: "1.7L Stainless Steel", Price: 34.99, Available: 60, ImageObjKey: "products/kettle.jpg", CategoryID: categories[1].ID},
-		{Name: "French Press", Description: "1L Glass Coffee Maker", Price: 18.00, Available: 45, ImageObjKey: "products/frenchpress.jpg", CategoryID: categories[1].ID},
-		{Name: "Knife Block Set", Description: "15-piece Professional Steel", Price: 75.00, Available: 10, ImageObjKey: "products/knives.jpg", CategoryID: categories[1].ID},
-		{Name: "Digital Scale", Description: "High precision kitchen scale", Price: 12.99, Available: 150, ImageObjKey: "products/scale.jpg", CategoryID: categories[1].ID},
-
-		// --- Stationery ---
-		{Name: "Fountain Pen", Description: "Fine nib classic pen", Price: 25.00, Available: 100, ImageObjKey: "products/pen.jpg", CategoryID: categories[2].ID},
-		{Name: "Hardcover Notebook", Description: "A5 Dotted Paper", Price: 15.99, Available: 200, ImageObjKey: "products/notebook.jpg", CategoryID: categories[2].ID},
-		{Name: "Desk Organizer", Description: "Mesh Metal 6-compartment", Price: 19.50, Available: 55, ImageObjKey: "products/organizer.jpg", CategoryID: categories[2].ID},
-		{Name: "Gel Pen Set", Description: "12 Colors Fine Point", Price: 14.00, Available: 90, ImageObjKey: "products/gelpens.jpg", CategoryID: categories[2].ID},
-		{Name: "Sticky Notes Bundle", Description: "Assorted neon colors", Price: 8.50, Available: 300, ImageObjKey: "products/stickynotes.jpg", CategoryID: categories[2].ID},
-
-		// --- Fitness ---
-		{Name: "Yoga Mat", Description: "6mm Thick Non-slip", Price: 22.00, Available: 75, ImageObjKey: "products/yogamat.jpg", CategoryID: categories[3].ID},
-		{Name: "Dumbbell Set", Description: "5lb - 20lb Pair", Price: 55.00, Available: 20, ImageObjKey: "products/dumbbells.jpg", CategoryID: categories[3].ID},
-		{Name: "Resistance Bands", Description: "Set of 5 levels", Price: 12.50, Available: 110, ImageObjKey: "products/bands.jpg", CategoryID: categories[3].ID},
-		{Name: "Jump Rope", Description: "Speed rope with bearings", Price: 9.99, Available: 140, ImageObjKey: "products/jumprope.jpg", CategoryID: categories[3].ID},
-		{Name: "Water Bottle", Description: "1L Vacuum Insulated", Price: 24.00, Available: 95, ImageObjKey: "products/bottle.jpg", CategoryID: categories[3].ID},
-
-		// --- Personal Care ---
-		{Name: "Electric Toothbrush", Description: "Sonic vibration with 3 modes", Price: 49.99, Available: 40, ImageObjKey: "products/toothbrush.jpg", CategoryID: categories[4].ID},
-		{Name: "Beard Trimmer", Description: "Cordless with 20 settings", Price: 38.00, Available: 35, ImageObjKey: "products/trimmer.jpg", CategoryID: categories[4].ID},
-		{Name: "Hair Dryer", Description: "1800W Ionic Pro", Price: 59.00, Available: 25, ImageObjKey: "products/hairdryer.jpg", CategoryID: categories[4].ID},
-		{Name: "Face Cleanser", Description: "Organic Aloe Vera 200ml", Price: 16.50, Available: 120, ImageObjKey: "products/cleanser.jpg", CategoryID: categories[4].ID},
-		{Name: "Hand Cream", Description: "Shea Butter Repair 50ml", Price: 7.99, Available: 200, ImageObjKey: "products/handcream.jpg", CategoryID: categories[4].ID},
+		// --- Accessory ---
+		{"Accessory", "Minimalist Wristwatch", "Stainless steel mesh band, quartz", 125.00, 40, "accessories/watch.jpg"},
+		{"Accessory", "Aviator Sunglasses", "Polarized lenses with UV400", 85.00, 65, "accessories/sunglasses.jpg"},
+		{"Accessory", "Classic Leather Belt", "Full-grain leather, silver buckle", 34.99, 100, "accessories/belt.jpg"},
+		{"Accessory", "Knit Beanie", "Warm winter hat, unisex", 18.00, 150, "accessories/knit-beanie.jpg"},
+		{"Accessory", "Canvas Baseball Cap", "Adjustable strap, embroidered logo", 22.50, 120, "accessories/cap.jpg"},
+		{"Accessory", "Cashmere Scarf", "Ultra-soft winter neckwear", 60.00, 45, "accessories/scarf.jpg"},
+		{"Accessory", "Bifold Leather Wallet", "RFID blocking with coin pocket", 45.00, 80, "accessories/wallet.jpg"},
+		{"Accessory", "Everyday Backpack", "Water-resistant with laptop sleeve", 75.00, 55, "accessories/bagpack.jpg"},
+		{"Accessory", "Canvas Messenger Bag", "Vintage style crossbody bag", 65.50, 35, "accessories/bagpack.jpg"},
+		{"Accessory", "Leather Gloves", "Touchscreen compatible, fleece-lined", 48.00, 60, "accessories/gloves.jpg"},
+		{"Accessory", "Silk Necktie", "Textured weave, standard width", 28.00, 90, "accessories/necktie.jpg"},
+		{"Accessory", "Gold Earrings", "14k Gold plated minimalist hoops", 35.00, 75, "accessories/gold-earrings.jpg"},
+		{"Accessory", "Pendant Necklace", "Sterling silver chain with geometric pendant", 42.00, 50, "accessories/gold-necklace.jpg"},
+		{"Accessory", "Braided Leather Bracelet", "Magnetic steel clasp", 24.00, 110, "accessories/leather-bracelet.jpg"},
 	}
 
-	for _, prod := range products {
-		err := db.Where(Product{Name: prod.Name}).FirstOrCreate(&prod).Error
+	for _, p := range productsData {
+		var existingProduct Product
+		err := db.Where(Product{Name: p.Name}).First(&existingProduct).Error
+		if err == nil {
+			// Product already exists, skip
+			continue
+		}
+
+		// 3. Upload Image
+		imagePath := filepath.Join("..", "static", filepath.FromSlash(p.ImageFile))
+		f, err := os.Open(imagePath)
 		if err != nil {
-			return fmt.Errorf("could not seed product %s: %v", prod.Name, err)
+			return fmt.Errorf("could not open image %s: %v", imagePath, err)
+		}
+
+		stat, _ := f.Stat()
+		fileName := filepath.Base(p.ImageFile)
+		putKey := fmt.Sprintf("product-images/%v-%v", time.Now().UnixNano(), fileName)
+
+		// Upload to Object Storage
+		objKey, err := fileRepo.UploadFile(ctx, putKey, f, stat.Size(), "image/jpeg")
+		f.Close()
+		if err != nil {
+			return fmt.Errorf("error uploading file to S3: %v", err)
+		}
+
+		// Store File Metadata to database
+		fileMeta := &File{
+			OriginalName: fileName,
+			Name:         uuid.New().String(),
+			Size:         stat.Size(),
+			ContentType:  "image/jpeg",
+			ObjectKey:    objKey,
+		}
+
+		_, err = fileRepo.CreateFileMeta(ctx, fileMeta)
+		if err != nil {
+			return fmt.Errorf("error generating file metadata: %v", err)
+		}
+
+		product := Product{
+			Name:        p.Name,
+			Description: p.Description,
+			Price:       p.Price,
+			Available:   p.Available,
+			ImageObjKey: objKey,
+			CategoryID:  categoryMap[p.CategoryName],
+		}
+
+		err = db.Create(&product).Error
+		if err != nil {
+			return fmt.Errorf("could not seed product %s: %v", p.Name, err)
 		}
 	}
 
-	fmt.Println("✅ Database seeded with 5 categories and 25 products!")
+	// 3. Add Static Files
+	staticImages := []string{
+		"auth-banner.jpg",
+		"hero/hero.jpg",
+		"hero/hero-sm.jpg",
+		"home-apparel.jpg",
+		"home-accessory.jpg",
+		"apparelSlide1.jpg",
+		"apparelSlide2.jpg",
+		"apparelSlide3.jpg",
+		"accessorySlide1.jpg",
+		"accessorySlide2.jpg",
+		"accessorySlide3.jpg",
+	}
+
+	for _, imgName := range staticImages {
+		imagePath := filepath.Join("..", "static", filepath.FromSlash(imgName))
+		f, err := os.Open(imagePath)
+		if err != nil {
+			return fmt.Errorf("could not open image %s: %v", imagePath, err)
+		}
+
+		stat, _ := f.Stat()
+		fileName := filepath.Base(imgName)
+		putKey := fmt.Sprintf("static/%v", fileName)
+
+		// Upload to Object Storage
+		objKey, err := fileRepo.UploadFile(ctx, putKey, f, stat.Size(), "image/jpeg")
+		f.Close()
+		if err != nil {
+			return fmt.Errorf("error uploading file to S3: %v\n", err)
+		}
+
+		fmt.Printf("The image is stored at %v\n", objKey)
+	}
+
+	fmt.Println("✅ Database seeded with 2 categories and 30 products!")
 	return nil
 }
