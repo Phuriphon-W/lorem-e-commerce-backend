@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/auth/dto"
@@ -11,17 +12,20 @@ import (
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 type authHandlerImpl struct {
 	authRepository repository.AuthRepository
+	emailService   utils.EmailService
 	jwtSecret      string
 	jwtExpire      string
 }
 
-func NewAuthHandlerImpl(authRepo repository.AuthRepository) AuthHandler {
+func NewAuthHandlerImpl(authRepo repository.AuthRepository, emailSvc utils.EmailService) AuthHandler {
 	return &authHandlerImpl{
 		authRepository: authRepo,
+		emailService:   emailSvc,
 		jwtSecret:      config.GlobalConfig.JWTSecret,
 		jwtExpire:      config.GlobalConfig.JWTExpire,
 	}
@@ -148,4 +152,77 @@ func (a *authHandlerImpl) SignOutUser(ctx context.Context, input *dto.SignOutUse
 	}
 
 	return res, nil
+}
+
+func (a *authHandlerImpl) ForgotPassword(ctx context.Context, input *dto.ForgotPasswordInputDto) (*dto.ForgotPasswordOutputDto, error) {
+	// Define the generic success response we will return no matter what happens
+	successResponse := &dto.ForgotPasswordOutputDto{
+		Body: dto.ForgotPasswordOutputDtoBody{
+			Message: "If your email is registered, you will receive a password reset link shortly.",
+		},
+	}
+
+	// Check if user exists
+	userData, err := a.authRepository.GetUserByEmail(ctx, input.Body.Email)
+	if err != nil || userData == nil {
+		// Do not leak that the user does not exist. Just return generic success message.
+		return successResponse, nil
+	}
+
+	// Generate reset token and send e-mail in the background
+	go func(userID uuid.UUID, username string, userEmail string) {
+		// Generate reset token (JWT) valid for 10 minutes
+		resetDuration := 10 * time.Minute
+		token, err := utils.GenerateJWT(userData.ID, a.jwtSecret, resetDuration)
+		if err != nil {
+			log.Printf("Failed to generate reset token: %v\n", err)
+			return // Stop execution for this goroutine
+		}
+
+		// Send the reset link via email
+		resetLink := config.GlobalConfig.FrontendURL + "/reset-password?token=" + token
+		err = a.emailService.SendResetPasswordEmail(userEmail, username, resetLink)
+		if err != nil {
+			log.Printf("Failed to send password reset email to %v: %v\n", userEmail, err)
+		}
+		log.Printf("Password Reset Email Successfully Send to %v\n", userEmail)
+	}(userData.ID, userData.Username, input.Body.Email)
+
+	return successResponse, nil
+}
+
+func (a *authHandlerImpl) ResetPassword(ctx context.Context, input *dto.ResetPasswordInputDto) (*dto.ResetPasswordOutputDto, error) {
+	// Verify token
+	claims, err := utils.VerifyJWT(input.Body.Token, a.jwtSecret)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("Invalid or expired reset token.")
+	}
+
+	userIDStr, ok := claims["id"].(string)
+	if !ok {
+		return nil, huma.Error401Unauthorized("Invalid reset token payload.")
+	}
+
+	userID, err := uuid.Parse(userIDStr)
+	if err != nil {
+		return nil, huma.Error401Unauthorized("Invalid reset token user format.")
+	}
+
+	// Hash new password
+	hashed, err := utils.HashPassword(input.Body.Password)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to hash new password", err)
+	}
+
+	// Update password in DB
+	err = a.authRepository.UpdatePassword(ctx, userID, hashed)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to update password", err)
+	}
+
+	return &dto.ResetPasswordOutputDto{
+		Body: dto.ResetPasswordOutputDtoBody{
+			Message: "Password has been successfully updated.",
+		},
+	}, nil
 }

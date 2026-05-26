@@ -18,5 +18,6 @@ type AuthRepository interface {
 		ID       uuid.UUID
 		Username string
 	}, error)
+	UpdatePassword(ctx context.Context, userID uuid.UUID, newPasswordHash string) error
 	// SignOut(ctx context.Context)
 }
