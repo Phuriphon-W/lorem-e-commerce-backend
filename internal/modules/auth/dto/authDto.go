@@ -57,3 +57,38 @@ type (
 		AuthToken http.Cookie `header:"Set-Cookie" required:"true" doc:"Cleared Cookie Session Token"`
 	}
 )
+
+// Forgot Password
+type (
+	ForgotPasswordInputDto struct {
+		Body struct {
+			Email string `json:"email" required:"true" doc:"E-mail Address" example:"example@mail.com"`
+		}
+	}
+
+	ForgotPasswordOutputDtoBody struct {
+		Message string `json:"message" doc:"Result message"`
+	}
+
+	ForgotPasswordOutputDto struct {
+		Body ForgotPasswordOutputDtoBody
+	}
+)
+
+// Reset Password
+type (
+	ResetPasswordInputDto struct {
+		Body struct {
+			Token    string `json:"token" required:"true" doc:"Reset Token"`
+			Password string `json:"password" required:"true" doc:"New Password"`
+		}
+	}
+
+	ResetPasswordOutputDtoBody struct {
+		Message string `json:"message" doc:"Result message"`
+	}
+
+	ResetPasswordOutputDto struct {
+		Body ResetPasswordOutputDtoBody
+	}
+)

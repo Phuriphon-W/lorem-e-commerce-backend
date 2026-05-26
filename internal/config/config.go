@@ -25,6 +25,11 @@ type Config struct {
 	StripeSecretKey     string        `mapstructure:"STRIPE_SECRET_KEY"`
 	StripeWebhookSecret string        `mapstructure:"STRIPE_WEBHOOK_SECRET"`
 	StripeSessionExpire time.Duration `mapstructure:"STRIPE_SESSION_EXPIRE"`
+	SmtpHost            string        `mapstructure:"SMTP_HOST"`
+	SmtpPort            int           `mapstructure:"SMTP_PORT"`
+	SmtpUser            string        `mapstructure:"SMTP_USER"`
+	SmtpPassword        string        `mapstructure:"SMTP_PASSWORD"`
+	SmtpFrom            string        `mapstructure:"SMTP_FROM"`
 }
 
 var GlobalConfig *Config
@@ -54,6 +59,8 @@ func LoadConfig() {
 	viper.SetDefault("AWS_SECRET_KEY", "")
 	viper.SetDefault("STRIPE_SECRET_KEY", "")
 	viper.SetDefault("STRIPE_WEBHOOK_SECRET", "")
+	viper.SetDefault("SMTP_USER", "")
+	viper.SetDefault("SMTP_PASSWORD", "")
 
 	// Read the file
 	if err := viper.ReadInConfig(); err != nil {

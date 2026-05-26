@@ -21,6 +21,7 @@ import (
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
 	userRepo "lorem-backend/internal/modules/user/repository"
+	"lorem-backend/internal/utils"
 	"net/http"
 	"time"
 
@@ -117,9 +118,18 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
+	// Init email service
+	emailSvc := utils.NewSMTPEmailService(
+		config.GlobalConfig.SmtpHost,
+		config.GlobalConfig.SmtpPort,
+		config.GlobalConfig.SmtpUser,
+		config.GlobalConfig.SmtpPassword,
+		config.GlobalConfig.SmtpFrom,
+	)
+
 	// Init auth repo and handler
 	authRepo := authRepo.NewAuthPostgresRepository(db)
-	authHandler := authHandler.NewAuthHandlerImpl(authRepo)
+	authHandler := authHandler.NewAuthHandlerImpl(authRepo, emailSvc)
 
 	// POST /auth/register
 	huma.Register(api, huma.Operation{
@@ -153,6 +163,28 @@ func registerAuthRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Auth"},
 		DefaultStatus: http.StatusOK,
 	}, authHandler.SignOutUser)
+
+	// POST /auth/forgot-password
+	huma.Register(api, huma.Operation{
+		OperationID:   "forgot-password",
+		Method:        http.MethodPost,
+		Path:          "/forgot-password",
+		Summary:       "Forgot Password",
+		Description:   "Send password reset link",
+		Tags:          []string{"Auth"},
+		DefaultStatus: http.StatusOK,
+	}, authHandler.ForgotPassword)
+
+	// POST /auth/reset-password
+	huma.Register(api, huma.Operation{
+		OperationID:   "reset-password",
+		Method:        http.MethodPost,
+		Path:          "/reset-password",
+		Summary:       "Reset Password",
+		Description:   "Reset password using token",
+		Tags:          []string{"Auth"},
+		DefaultStatus: http.StatusOK,
+	}, authHandler.ResetPassword)
 }
 
 func registerUserRoute(api huma.API, db database.Database) {

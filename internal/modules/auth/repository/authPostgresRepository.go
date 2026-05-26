@@ -90,3 +90,12 @@ func (a *authPostgresRepository) GetUserByUsername(ctx context.Context, username
 
 	return &result, nil
 }
+
+func (a *authPostgresRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, newPasswordHash string) error {
+	err := a.db.GetDb().WithContext(ctx).
+		Table("users").
+		Where("id = ?", userID).
+		Update("password_hash", newPasswordHash).Error
+
+	return err
+}
