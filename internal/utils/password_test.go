@@ -34,3 +34,14 @@ func TestHashPassword_Empty(t *testing.T) {
 	isValid := VerifyPassword(password, hash)
 	assert.True(t, isValid)
 }
+
+func TestHashPassword_TooLong(t *testing.T) {
+	// bcrypt max password length is 72 bytes
+	password := ""
+	for i := 0; i < 73; i++ {
+		password += "a"
+	}
+
+	_, err := HashPassword(password)
+	assert.Error(t, err)
+}

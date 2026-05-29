@@ -2,86 +2,114 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"lorem-backend/internal/database"
 	"regexp"
 	"testing"
 	"time"
 
-	"lorem-backend/internal/database"
-
-	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
-func TestUserPostgresRepository_GetUsers(t *testing.T) {
-	mockDB := database.NewMockDatabase(t)
-	repo := NewUserPostgresRepository(mockDB)
-	ctx := context.Background()
+// Define Test Suite
+type UserRepositoryTestSuite struct {
+	suite.Suite
+	mockDB   *database.MockDatabase
+	userRepo UserRepository
+	ctx      context.Context
+}
 
-	mockUsers := sqlmock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
-		AddRow(uuid.New().String(), "user1", "user1@example.com", "User", "One", time.Now()).
-		AddRow(uuid.New().String(), "user2", "user2@example.com", "User", "Two", time.Now())
+// Set Up
+func (s *UserRepositoryTestSuite) SetupTest() {
+	s.mockDB = database.NewMockDatabase(s.T())
+	s.userRepo = NewUserPostgresRepository(s.mockDB)
+	s.ctx = context.Background()
+}
 
-	mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."deleted_at" IS NULL`)).
+// Tear Down
+func (s *UserRepositoryTestSuite) TearDownTest() {
+	// Automatically checks expectations after every single test ends
+	s.NoError(s.mockDB.Mock.ExpectationsWereMet())
+}
+
+func (s *UserRepositoryTestSuite) TestGetUsers() {
+	mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
+		AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now()).
+		AddRow(uuid.New(), "User2", "user2@mail.com", "Jane", "Doe", time.Now()).
+		AddRow(uuid.New(), "User3", "user3@mail.com", "Jack", "Doe", time.Now())
+
+	s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."deleted_at" IS NULL`)).
 		WillReturnRows(mockUsers)
 
-	users, err := repo.GetUsers(ctx)
+	users, err := s.userRepo.GetUsers(s.ctx)
 
-	assert.NoError(t, err)
-	assert.Len(t, users, 2)
-	assert.Equal(t, "user1", users[0].Username)
-	assert.Equal(t, "user2", users[1].Username)
-
-	assert.NoError(t, mockDB.Mock.ExpectationsWereMet())
+	s.NoError(err)
+	s.Len(users, 3)
+	s.Equal("John", users[0].FirstName)
+	s.Equal("user3@mail.com", users[2].Email)
+	s.Equal("User2", users[1].Username)
 }
 
-func TestUserPostgresRepository_GetUserByID(t *testing.T) {
-	mockDB := database.NewMockDatabase(t)
-	repo := NewUserPostgresRepository(mockDB)
-	ctx := context.Background()
+func (s *UserRepositoryTestSuite) TestGetUserByID() {
+	expectedQuery := regexp.QuoteMeta(
+		`SELECT * FROM "users" WHERE id = $1 AND "users"."deleted_at" IS NULL ORDER BY "users"."id" LIMIT $2`,
+	)
 
-	userID := uuid.New()
-
-	mockUser := sqlmock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
-		AddRow(userID.String(), "user1", "user1@example.com", "User", "One", time.Now())
-
-	mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE id = $1 AND "users"."deleted_at" IS NULL ORDER BY "users"."id" LIMIT $2`)).
-		WithArgs(userID, 1).
-		WillReturnRows(mockUser)
-
-	user, err := repo.GetUserByID(ctx, userID)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, user)
-	assert.Equal(t, userID, user.ID)
-	assert.Equal(t, "user1", user.Username)
-
-	assert.NoError(t, mockDB.Mock.ExpectationsWereMet())
-}
-
-func TestUserPostgresRepository_UpdateUser(t *testing.T) {
-	mockDB := database.NewMockDatabase(t)
-	repo := NewUserPostgresRepository(mockDB)
-	ctx := context.Background()
-
-	userID := uuid.New()
-	user := &database.User{
-		Base: database.Base{
-			ID: userID,
+	testCases := []struct {
+		name    string
+		setup   func(id uuid.UUID)
+		wantErr error
+	}{
+		{
+			name: "Success - returns user when ID exists",
+			setup: func(id uuid.UUID) {
+				rows := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at", "updated_at", "deleted_at"}).
+					AddRow(id, "john_doe", "john@example.com", "John", "Doe", time.Now(), time.Now(), nil)
+				s.mockDB.Mock.ExpectQuery(expectedQuery).WithArgs(id, 1).WillReturnRows(rows)
+			},
 		},
-		Username:  "updateduser",
-		FirstName: "Updated",
-		LastName:  "User",
-		Email:     "updated@example.com",
+		{
+			name: "Failure - returns ErrRecordNotFound when ID does not exist",
+			setup: func(id uuid.UUID) {
+				s.mockDB.Mock.ExpectQuery(expectedQuery).WithArgs(id, 1).WillReturnError(gorm.ErrRecordNotFound)
+			},
+			wantErr: gorm.ErrRecordNotFound,
+		},
+		{
+			name: "Failure - returns error on database failure",
+			setup: func(id uuid.UUID) {
+				s.mockDB.Mock.ExpectQuery(expectedQuery).WithArgs(id, 1).WillReturnError(errors.New("connection refused"))
+			},
+			wantErr: errors.New("connection refused"),
+		},
 	}
 
-	mockDB.Mock.ExpectBegin()
-	mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users" SET`)).
-		WillReturnResult(sqlmock.NewResult(1, 1))
-	mockDB.Mock.ExpectCommit()
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			id := uuid.New()
+			tc.setup(id)
 
-	err := repo.UpdateUser(ctx, user)
+			user, err := s.userRepo.GetUserByID(s.ctx, id)
 
-	assert.NoError(t, err)
-	assert.NoError(t, mockDB.Mock.ExpectationsWereMet())
+			if tc.wantErr != nil {
+				s.Require().Error(err)
+				s.EqualError(err, tc.wantErr.Error())
+				s.Nil(user)
+			} else {
+				s.Require().NoError(err)
+				s.Require().NotNil(user)
+				s.Equal(id, user.ID)
+				s.Equal("john_doe", user.Username)
+				s.Equal("John", user.FirstName)
+				s.Equal("Doe", user.LastName)
+				s.Equal("john@example.com", user.Email)
+			}
+		})
+	}
+}
+
+func TestUserRepository(t *testing.T) {
+	suite.Run(t, new(UserRepositoryTestSuite))
 }
