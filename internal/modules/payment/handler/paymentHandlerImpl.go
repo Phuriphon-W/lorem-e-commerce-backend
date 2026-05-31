@@ -13,6 +13,7 @@ import (
 	"lorem-backend/internal/modules/payment/gateway"
 	"lorem-backend/internal/modules/payment/repository"
 	"lorem-backend/internal/utils"
+	"net"
 	"net/http"
 	"slices"
 
@@ -82,7 +83,8 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 	ipFromStripeWebhook := c.RealIP()
 
 	// Checks webhook coming from allowed IP
-	if !slices.Contains(utils.AllowedStripeIPs[:], ipFromStripeWebhook) {
+	parsedIP := net.ParseIP(ipFromStripeWebhook)
+	if !slices.Contains(utils.AllowedStripeIPs[:], ipFromStripeWebhook) && (parsedIP == nil || (!parsedIP.IsLoopback() && !parsedIP.IsPrivate())) {
 		return c.JSON(http.StatusForbidden, utils.CreateErrorResponse(http.StatusForbidden, "IP Not Allowed"))
 	}
 
