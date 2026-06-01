@@ -195,12 +195,19 @@ func (h *orderHandlerImpl) mapOrderToResponse(ctx context.Context, ord database.
 
 	wg.Wait()
 
+	var stripeExpiresAt *int64
+	if ord.StripeSessionExpiresAt != nil {
+		ts := ord.StripeSessionExpiresAt.Unix()
+		stripeExpiresAt = &ts
+	}
+
 	return dto.OrderResponse{
-		ID:          ord.ID,
-		UserID:      ord.UserID,
-		TotalPrice:  ord.TotalPrice,
-		OrderStatus: ord.OrderStatus,
-		OrderItems:  items,
-		CreatedAt:   ord.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		ID:                     ord.ID,
+		UserID:                 ord.UserID,
+		TotalPrice:             ord.TotalPrice,
+		OrderStatus:            ord.OrderStatus,
+		StripeSessionExpiresAt: stripeExpiresAt,
+		OrderItems:             items,
+		CreatedAt:              ord.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }

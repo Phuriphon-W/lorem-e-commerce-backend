@@ -1,4 +1,4 @@
-package utils
+package service
 
 import (
 	"bytes"
@@ -11,10 +11,6 @@ import (
 
 //go:embed templates/reset_password.html templates/styles.css
 var templateFS embed.FS
-
-type EmailService interface {
-	SendResetPasswordEmail(toEmail, userName, resetLink string) error
-}
 
 type smtpEmailService struct {
 	host     string

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"lorem-backend/internal/database"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -12,4 +13,5 @@ type OrderRepository interface {
 	GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, status string, orderBy string) ([]database.Order, int64, error)
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*database.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status database.OrderStatus) error
+	UpdateOrderSession(ctx context.Context, orderID uuid.UUID, sessionID, sessionURL string, expiresAt *time.Time) error
 }

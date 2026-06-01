@@ -10,6 +10,7 @@ import (
 	cartRepo "lorem-backend/internal/modules/cart/repository"
 	catHandler "lorem-backend/internal/modules/category/handler"
 	catRepo "lorem-backend/internal/modules/category/repository"
+	emailService "lorem-backend/internal/modules/email/service"
 	fileHandler "lorem-backend/internal/modules/file/handler"
 	fileRepo "lorem-backend/internal/modules/file/repository"
 	orderHandler "lorem-backend/internal/modules/order/handler"
@@ -21,7 +22,7 @@ import (
 	productRepo "lorem-backend/internal/modules/product/repository"
 	userHandler "lorem-backend/internal/modules/user/handler"
 	userRepo "lorem-backend/internal/modules/user/repository"
-	"lorem-backend/internal/utils"
+	wsService "lorem-backend/internal/modules/websocket/service"
 	"net/http"
 	"time"
 
@@ -96,6 +97,12 @@ func createHumaConfig() huma.Config {
 }
 
 func registerRoutes(protected huma.API, public huma.API, db database.Database, s3 *s3.Client, e *echo.Echo) {
+	// Init ws service
+	wsSvc := wsService.NewWebsocketService()
+
+	// Register ws route
+	e.GET("/ws", wsSvc.WebsocketHandler)
+
 	// Init object storage repository
 	s3Repository := fileRepo.NewS3Repository(s3)
 
@@ -114,12 +121,12 @@ func registerRoutes(protected huma.API, public huma.API, db database.Database, s
 	registerFileRoute(protected, public, fileRepository)
 	registerCartRoute(protected, db, fileRepository, productRepository)
 	registerOrderRoute(protected, orderRepository, productRepository, fileRepository)
-	registerPaymentRoute(protected, e, db, orderRepository, productRepository)
+	registerPaymentRoute(protected, e, db, orderRepository, productRepository, wsSvc)
 }
 
 func registerAuthRoute(api huma.API, db database.Database) {
 	// Init email service
-	emailSvc := utils.NewSMTPEmailService(
+	emailSvc := emailService.NewSMTPEmailService(
 		config.GlobalConfig.SmtpHost,
 		config.GlobalConfig.SmtpPort,
 		config.GlobalConfig.SmtpUser,
@@ -468,13 +475,13 @@ func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodR
 	}, orderHandler.UpdateOrderStatus)
 }
 
-func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository, productRepo productRepo.ProductRepository) {
+func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orderRepo orderRepo.OrderRepository, productRepo productRepo.ProductRepository, wsSvc wsService.WebsocketService) {
 	// Init Stripe gateway
 	stripeGateway := gateway.NewStripePaymentGateway(config.GlobalConfig.StripeSecretKey, config.GlobalConfig.StripeWebhookSecret)
 
 	// Init Payment Repository and Handler
 	paymentRepository := paymentRepo.NewPaymentPostgresRepository(db)
-	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway)
+	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway, wsSvc)
 
 	// Register Webhook directly via Echo
 	// POST /api/webhook/stripe
@@ -502,4 +509,15 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 		Tags:          []string{"Payment"},
 		DefaultStatus: http.StatusOK,
 	}, paymentHandler.GetUserPaymentsByUserID)
+
+	// GET /api/payment/verify
+	huma.Register(api, huma.Operation{
+		OperationID:   "verify-session",
+		Method:        http.MethodGet,
+		Path:          "/payment/verify",
+		Summary:       "Verify Session",
+		Description:   "Verify Stripe Session",
+		Tags:          []string{"Payment"},
+		DefaultStatus: http.StatusOK,
+	}, paymentHandler.VerifySession)
 }

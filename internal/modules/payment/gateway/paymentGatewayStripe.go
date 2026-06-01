@@ -27,7 +27,7 @@ func NewStripePaymentGateway(secretKey string, webhookSecret string) PaymentGate
 	}
 }
 
-func (s *stripePaymentGateway) CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, error) {
+func (s *stripePaymentGateway) CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, string, int64, error) {
 	amountInCents := int64(totalPrice * 100)
 
 	params := &stripe.CheckoutSessionParams{
@@ -54,10 +54,10 @@ func (s *stripePaymentGateway) CreateCheckoutSession(orderID uuid.UUID, totalPri
 
 	stripeSession, err := session.New(params)
 	if err != nil {
-		return "", err
+		return "", "", 0, err
 	}
 
-	return stripeSession.URL, nil
+	return stripeSession.ID, stripeSession.URL, stripeSession.ExpiresAt, nil
 }
 
 func (s *stripePaymentGateway) ExtractOrderEventFromWebhook(payload []byte, c echo.Context) (string, string, error) {
