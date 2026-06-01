@@ -4,6 +4,8 @@ import (
 	"context"
 	"lorem-backend/internal/database"
 
+	"time"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -89,4 +91,15 @@ func (r *orderPostgresRepository) UpdateOrderStatus(ctx context.Context, orderID
 		Model(&database.Order{}).
 		Where("id = ?", orderID).
 		Update("order_status", status).Error
+}
+
+func (r *orderPostgresRepository) UpdateOrderSession(ctx context.Context, orderID uuid.UUID, sessionID, sessionURL string, expiresAt *time.Time) error {
+	return r.db.GetDb().WithContext(ctx).
+		Model(&database.Order{}).
+		Where("id = ?", orderID).
+		Updates(map[string]interface{}{
+			"stripe_session_id":         sessionID,
+			"stripe_session_url":        sessionURL,
+			"stripe_session_expires_at": expiresAt,
+		}).Error
 }

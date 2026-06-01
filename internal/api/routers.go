@@ -88,6 +88,7 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 
 func registerAPIDocumentations(router *echo.Echo) {
 	router.GET("/docs", StoplightElements)
+	router.GET("/ws", utils.WebsocketHandler)
 }
 
 func createHumaConfig() huma.Config {
@@ -502,4 +503,15 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 		Tags:          []string{"Payment"},
 		DefaultStatus: http.StatusOK,
 	}, paymentHandler.GetUserPaymentsByUserID)
+
+	// GET /api/payment/verify
+	huma.Register(api, huma.Operation{
+		OperationID:   "verify-session",
+		Method:        http.MethodGet,
+		Path:          "/payment/verify",
+		Summary:       "Verify Session",
+		Description:   "Verify Stripe Session",
+		Tags:          []string{"Payment"},
+		DefaultStatus: http.StatusOK,
+	}, paymentHandler.VerifySession)
 }

@@ -82,11 +82,14 @@ const (
 
 type Order struct {
 	Base
-	UserID      uuid.UUID   `gorm:"not null"`
-	User        User        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	TotalPrice  float32     `gorm:"type:decimal(10,2);not null;check:total_price >= 0"`
-	OrderStatus OrderStatus `gorm:"type:varchar(20);not null;default:'pending'"`
-	OrderItems  []OrderItem `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	UserID                 uuid.UUID   `gorm:"not null"`
+	User                   User        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	TotalPrice             float32     `gorm:"type:decimal(10,2);not null;check:total_price >= 0"`
+	OrderStatus            OrderStatus `gorm:"type:varchar(20);not null;default:'pending'"`
+	StripeSessionID        *string     `gorm:"type:varchar(255)"`
+	StripeSessionURL       *string     `gorm:"type:text"`
+	StripeSessionExpiresAt *time.Time
+	OrderItems             []OrderItem `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type OrderItem struct {

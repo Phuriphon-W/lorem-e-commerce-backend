@@ -6,7 +6,7 @@ import (
 )
 
 type PaymentGateway interface {
-	CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, error)
+	CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, string, int64, error)
 	ExtractOrderEventFromWebhook(payload []byte, c echo.Context) (string, string, error)
 	VerifySessionPayment(sessionID string) (bool, error)
 }

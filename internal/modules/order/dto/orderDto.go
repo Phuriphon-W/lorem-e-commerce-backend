@@ -18,12 +18,13 @@ type OrderItemResponse struct {
 
 // Base Order Response
 type OrderResponse struct {
-	ID          uuid.UUID            `json:"id" doc:"Order ID"`
-	UserID      uuid.UUID            `json:"userId" doc:"ID of the user who placed the order"`
-	TotalPrice  float32              `json:"totalPrice" doc:"Total price of the order"`
-	OrderStatus database.OrderStatus `json:"orderStatus" doc:"Current status of the order" example:"pending"`
-	OrderItems  []OrderItemResponse  `json:"orderItems" doc:"List of items in the order"`
-	CreatedAt   string               `json:"createdAt" doc:"Order creation date"`
+	ID                     uuid.UUID            `json:"id" doc:"Order ID"`
+	UserID                 uuid.UUID            `json:"userId" doc:"ID of the user who placed the order"`
+	TotalPrice             float32              `json:"totalPrice" doc:"Total price of the order"`
+	OrderStatus            database.OrderStatus `json:"orderStatus" doc:"Current status of the order" example:"pending"`
+	StripeSessionExpiresAt *int64               `json:"stripeSessionExpiresAt,omitempty" doc:"Unix timestamp of stripe session expiration"`
+	OrderItems             []OrderItemResponse  `json:"orderItems" doc:"List of items in the order"`
+	CreatedAt              string               `json:"createdAt" doc:"Order creation date"`
 }
 
 // Create Order

@@ -26,6 +26,7 @@ type (
 
 	CreateCheckoutOutputDtoBody struct {
 		CheckoutURL string `json:"checkoutUrl" doc:"Payment Service Checkout URL to redirect the user to"`
+		ExpiresAt   int64  `json:"expiresAt" doc:"Expiration unix timestamp"`
 	}
 
 	CreateCheckoutOutputDto struct {
