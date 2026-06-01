@@ -12,6 +12,7 @@ import (
 	"lorem-backend/internal/modules/payment/dto"
 	"lorem-backend/internal/modules/payment/gateway"
 	"lorem-backend/internal/modules/payment/repository"
+	wsService "lorem-backend/internal/modules/websocket/service"
 	"lorem-backend/internal/utils"
 	"net"
 	"net/http"
@@ -28,6 +29,7 @@ type paymentHandlerImpl struct {
 	orderRepo      orderRepository.OrderRepository
 	productRepo    productRepository.ProductRepository
 	paymentGateway gateway.PaymentGateway
+	wsService      wsService.WebsocketService
 }
 
 func NewPaymentHandlerImpl(
@@ -35,12 +37,14 @@ func NewPaymentHandlerImpl(
 	ordRepo orderRepository.OrderRepository,
 	productRepo productRepository.ProductRepository,
 	payGateway gateway.PaymentGateway,
+	wsService wsService.WebsocketService,
 ) PaymentHandler {
 	return &paymentHandlerImpl{
 		paymentRepo:    payRepo,
 		orderRepo:      ordRepo,
 		productRepo:    productRepo,
 		paymentGateway: payGateway,
+		wsService:      wsService,
 	}
 }
 
@@ -161,7 +165,7 @@ func (h *paymentHandlerImpl) HandleStripeWebhook(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, utils.CreateErrorResponse(http.StatusInternalServerError, "Failed to update order to failed status"))
 		}
 
-		utils.DefaultWSHub.SendToUser(order.UserID, utils.WSPayload{
+		h.wsService.SendToUser(order.UserID, wsService.WSPayload{
 			Type: "ORDER_EXPIRED",
 			Payload: map[string]string{
 				"order_id": parsedOrderID.String(),

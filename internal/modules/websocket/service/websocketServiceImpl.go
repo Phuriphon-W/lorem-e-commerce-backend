@@ -1,7 +1,8 @@
-package utils
+package service
 
 import (
 	"log"
+	"lorem-backend/internal/utils"
 	"net/http"
 	"sync"
 
@@ -16,27 +17,24 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-type WSPayload struct {
-	Type    string      `json:"type"`
-	Payload interface{} `json:"payload"`
-}
-
-type WSHub struct {
+type wsHub struct {
 	sync.RWMutex
 	clients map[uuid.UUID][]*websocket.Conn
 }
 
-var DefaultWSHub = &WSHub{
-	clients: make(map[uuid.UUID][]*websocket.Conn),
+func NewWebsocketService() WebsocketService {
+	return &wsHub{
+		clients: make(map[uuid.UUID][]*websocket.Conn),
+	}
 }
 
-func (h *WSHub) AddClient(userID uuid.UUID, conn *websocket.Conn) {
+func (h *wsHub) AddClient(userID uuid.UUID, conn *websocket.Conn) {
 	h.Lock()
 	defer h.Unlock()
 	h.clients[userID] = append(h.clients[userID], conn)
 }
 
-func (h *WSHub) RemoveClient(userID uuid.UUID, conn *websocket.Conn) {
+func (h *wsHub) RemoveClient(userID uuid.UUID, conn *websocket.Conn) {
 	h.Lock()
 	defer h.Unlock()
 	conns := h.clients[userID]
@@ -51,7 +49,7 @@ func (h *WSHub) RemoveClient(userID uuid.UUID, conn *websocket.Conn) {
 	}
 }
 
-func (h *WSHub) SendToUser(userID uuid.UUID, message interface{}) {
+func (h *wsHub) SendToUser(userID uuid.UUID, message WSPayload) {
 	h.RLock()
 	defer h.RUnlock()
 	conns := h.clients[userID]
@@ -64,15 +62,15 @@ func (h *WSHub) SendToUser(userID uuid.UUID, message interface{}) {
 	}
 }
 
-func WebsocketHandler(c echo.Context) error {
+func (h *wsHub) WebsocketHandler(c echo.Context) error {
 	userIDStr := c.QueryParam("userId")
 	if userIDStr == "" {
-		return c.String(http.StatusBadRequest, "userId is required")
+		return c.JSON(http.StatusBadRequest, utils.CreateErrorResponse(http.StatusBadRequest, "userId is required"))
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "invalid userId")
+		return c.JSON(http.StatusBadRequest, utils.CreateErrorResponse(http.StatusBadRequest, "invalid userId"))
 	}
 
 	ws, err := upgrader.Upgrade(c.Response(), c.Request(), nil)
@@ -80,8 +78,8 @@ func WebsocketHandler(c echo.Context) error {
 		return err
 	}
 
-	DefaultWSHub.AddClient(userID, ws)
-	defer DefaultWSHub.RemoveClient(userID, ws)
+	h.AddClient(userID, ws)
+	defer h.RemoveClient(userID, ws)
 	defer ws.Close()
 
 	for {

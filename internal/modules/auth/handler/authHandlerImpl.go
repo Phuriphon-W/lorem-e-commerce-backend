@@ -7,6 +7,7 @@ import (
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/auth/dto"
 	"lorem-backend/internal/modules/auth/repository"
+	emailService "lorem-backend/internal/modules/email/service"
 	"lorem-backend/internal/utils"
 	"net/http"
 	"time"
@@ -17,12 +18,12 @@ import (
 
 type authHandlerImpl struct {
 	authRepository repository.AuthRepository
-	emailService   utils.EmailService
+	emailService   emailService.EmailService
 	jwtSecret      string
 	jwtExpire      string
 }
 
-func NewAuthHandlerImpl(authRepo repository.AuthRepository, emailSvc utils.EmailService) AuthHandler {
+func NewAuthHandlerImpl(authRepo repository.AuthRepository, emailSvc emailService.EmailService) AuthHandler {
 	return &authHandlerImpl{
 		authRepository: authRepo,
 		emailService:   emailSvc,
