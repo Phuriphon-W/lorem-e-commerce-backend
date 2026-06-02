@@ -9,8 +9,8 @@ import (
 	"lorem-backend/internal/modules/user/dto"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 // MockUserRepository is a mock type for the UserRepository type
@@ -39,10 +39,20 @@ func (m *MockUserRepository) UpdateUser(ctx context.Context, user *database.User
 	return args.Error(0)
 }
 
-func TestUserHandlerImpl_GetUserById_Success(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	handler := NewUserHandlerImpl(mockRepo)
+type UserHandlerTestSuite struct {
+	suite.Suite
+	mockRepo *MockUserRepository
+	handler  UserHandler
+	ctx      context.Context
+}
 
+func (s *UserHandlerTestSuite) SetupTest() {
+	s.mockRepo = new(MockUserRepository)
+	s.handler = NewUserHandlerImpl(s.mockRepo)
+	s.ctx = context.Background()
+}
+
+func (s *UserHandlerTestSuite) TestGetUserById() {
 	userID := uuid.New()
 	expectedUser := &database.User{
 		Base: database.Base{
@@ -53,38 +63,57 @@ func TestUserHandlerImpl_GetUserById_Success(t *testing.T) {
 		LastName:  "Doe",
 	}
 
-	mockRepo.On("GetUserByID", mock.Anything, userID).Return(expectedUser, nil)
+	testCases := []struct {
+		name          string
+		setupMock     func()
+		input         *dto.GetUserByIdInputDto
+		expectedError bool
+		verify        func(res *dto.GetUserByIdOutputDto)
+	}{
+		{
+			name: "Success - returns user when ID exists",
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(expectedUser, nil).Once()
+			},
+			input:         &dto.GetUserByIdInputDto{ID: userID},
+			expectedError: false,
+			verify: func(res *dto.GetUserByIdOutputDto) {
+				s.Equal(userID, res.Body.ID)
+				s.Equal("johndoe", res.Body.Username)
+			},
+		},
+		{
+			name: "Failure - User Not Found",
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("not found")).Once()
+			},
+			input:         &dto.GetUserByIdInputDto{ID: userID},
+			expectedError: true,
+			verify: func(res *dto.GetUserByIdOutputDto) {
+				s.Nil(res)
+			},
+		},
+	}
 
-	input := &dto.GetUserByIdInputDto{ID: userID}
-	res, err := handler.GetUserById(context.Background(), input)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.setupMock()
 
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, userID, res.Body.ID)
-	assert.Equal(t, "johndoe", res.Body.Username)
-	mockRepo.AssertExpectations(t)
+			res, err := s.handler.GetUserById(s.ctx, tc.input)
+
+			if tc.expectedError {
+				s.Error(err)
+			} else {
+				s.NoError(err)
+			}
+			tc.verify(res)
+			s.mockRepo.AssertExpectations(s.T())
+		})
+	}
 }
 
-func TestUserHandlerImpl_GetUserById_NotFound(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	handler := NewUserHandlerImpl(mockRepo)
-
-	userID := uuid.New()
-
-	mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("not found"))
-
-	input := &dto.GetUserByIdInputDto{ID: userID}
-	res, err := handler.GetUserById(context.Background(), input)
-
-	assert.Error(t, err)
-	assert.Nil(t, res)
-	mockRepo.AssertExpectations(t)
-}
-
-func TestUserHandlerImpl_GetMe_Success(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	handler := NewUserHandlerImpl(mockRepo)
-
+func (s *UserHandlerTestSuite) TestGetMe() {
 	userID := uuid.New()
 	expectedUser := &database.User{
 		Base: database.Base{
@@ -96,24 +125,77 @@ func TestUserHandlerImpl_GetMe_Success(t *testing.T) {
 		Email:     "john@example.com",
 	}
 
-	mockRepo.On("GetUserByID", mock.Anything, userID).Return(expectedUser, nil)
+	testCases := []struct {
+		name          string
+		ctx           context.Context
+		setupMock     func()
+		expectedError bool
+		verify        func(res *dto.GetMeOutputDto)
+	}{
+		{
+			name: "Success - returns current user details",
+			ctx:  context.WithValue(context.Background(), "userID", userID.String()),
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(expectedUser, nil).Once()
+			},
+			expectedError: false,
+			verify: func(res *dto.GetMeOutputDto) {
+				s.NotNil(res)
+				s.Equal(userID, res.Body.ID)
+				s.Equal("john@example.com", res.Body.Email)
+				s.Equal("johndoe", res.Body.Username)
+			},
+		},
+		{
+			name:          "Failure - missing userID in context",
+			ctx:           context.Background(),
+			setupMock:     func() {},
+			expectedError: true,
+			verify: func(res *dto.GetMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+		{
+			name:          "Failure - invalid UUID string in context",
+			ctx:           context.WithValue(context.Background(), "userID", "invalid-uuid"),
+			setupMock:     func() {},
+			expectedError: true,
+			verify: func(res *dto.GetMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+		{
+			name: "Failure - user not found in repository",
+			ctx:  context.WithValue(context.Background(), "userID", userID.String()),
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("user not found")).Once()
+			},
+			expectedError: true,
+			verify: func(res *dto.GetMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+	}
 
-	ctx := context.WithValue(context.Background(), "userID", userID.String())
-	input := &dto.GetMeInputDto{}
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.setupMock()
 
-	res, err := handler.GetMe(ctx, input)
+			res, err := s.handler.GetMe(tc.ctx, &dto.GetMeInputDto{})
 
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, userID, res.Body.ID)
-	assert.Equal(t, "john@example.com", res.Body.Email)
-	mockRepo.AssertExpectations(t)
+			if tc.expectedError {
+				s.Error(err)
+			} else {
+				s.NoError(err)
+			}
+			tc.verify(res)
+			s.mockRepo.AssertExpectations(s.T())
+		})
+	}
 }
 
-func TestUserHandlerImpl_UpdateMe_Success(t *testing.T) {
-	mockRepo := new(MockUserRepository)
-	handler := NewUserHandlerImpl(mockRepo)
-
+func (s *UserHandlerTestSuite) TestUpdateMe() {
 	userID := uuid.New()
 	existingUser := &database.User{
 		Base: database.Base{
@@ -124,13 +206,7 @@ func TestUserHandlerImpl_UpdateMe_Success(t *testing.T) {
 		LastName:  "Doe",
 	}
 
-	mockRepo.On("GetUserByID", mock.Anything, userID).Return(existingUser, nil)
-	mockRepo.On("UpdateUser", mock.Anything, mock.MatchedBy(func(u *database.User) bool {
-		return u.FirstName == "Jane" && u.LastName == "Smith"
-	})).Return(nil)
-
-	ctx := context.WithValue(context.Background(), "userID", userID.String())
-	input := &dto.UpdateMeInputDto{
+	updateInput := &dto.UpdateMeInputDto{
 		Body: struct {
 			FirstName string          `json:"firstName"`
 			LastName  string          `json:"lastName"`
@@ -143,10 +219,97 @@ func TestUserHandlerImpl_UpdateMe_Success(t *testing.T) {
 		},
 	}
 
-	res, err := handler.UpdateMe(ctx, input)
+	testCases := []struct {
+		name          string
+		ctx           context.Context
+		input         *dto.UpdateMeInputDto
+		setupMock     func()
+		expectedError bool
+		verify        func(res *dto.UpdateMeOutputDto)
+	}{
+		{
+			name:  "Success - updates user profile",
+			ctx:   context.WithValue(context.Background(), "userID", userID.String()),
+			input: updateInput,
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(existingUser, nil).Once()
+				s.mockRepo.On("UpdateUser", mock.Anything, mock.MatchedBy(func(u *database.User) bool {
+					return u.FirstName == "Jane" && u.LastName == "Smith"
+				})).Return(nil).Once()
+			},
+			expectedError: false,
+			verify: func(res *dto.UpdateMeOutputDto) {
+				s.NotNil(res)
+				s.Equal("Profile Updated Successfully", res.Body.Message)
+			},
+		},
+		{
+			name:          "Failure - missing userID in context",
+			ctx:           context.Background(),
+			input:         updateInput,
+			setupMock:     func() {},
+			expectedError: true,
+			verify: func(res *dto.UpdateMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+		{
+			name:          "Failure - invalid UUID string in context",
+			ctx:           context.WithValue(context.Background(), "userID", "invalid-uuid"),
+			input:         updateInput,
+			setupMock:     func() {},
+			expectedError: true,
+			verify: func(res *dto.UpdateMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+		{
+			name:  "Failure - user not found in repository (GetUserByID returns error)",
+			ctx:   context.WithValue(context.Background(), "userID", userID.String()),
+			input: updateInput,
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("user not found")).Once()
+			},
+			expectedError: true,
+			verify: func(res *dto.UpdateMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+		{
+			name:  "Failure - database error on update (UpdateUser returns error)",
+			ctx:   context.WithValue(context.Background(), "userID", userID.String()),
+			input: updateInput,
+			setupMock: func() {
+				s.mockRepo.On("GetUserByID", mock.Anything, userID).Return(existingUser, nil).Once()
+				s.mockRepo.On("UpdateUser", mock.Anything, mock.MatchedBy(func(u *database.User) bool {
+					return u.FirstName == "Jane" && u.LastName == "Smith"
+				})).Return(errors.New("db error")).Once()
+			},
+			expectedError: true,
+			verify: func(res *dto.UpdateMeOutputDto) {
+				s.Nil(res)
+			},
+		},
+	}
 
-	assert.NoError(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, "Profile Updated Successfully", res.Body.Message)
-	mockRepo.AssertExpectations(t)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.setupMock()
+
+			res, err := s.handler.UpdateMe(tc.ctx, tc.input)
+
+			if tc.expectedError {
+				s.Error(err)
+			} else {
+				s.NoError(err)
+			}
+			tc.verify(res)
+			s.mockRepo.AssertExpectations(s.T())
+		})
+	}
+}
+
+func TestUserHandlerSuite(t *testing.T) {
+	suite.Run(t, new(UserHandlerTestSuite))
 }
