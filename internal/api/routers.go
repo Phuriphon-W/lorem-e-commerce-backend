@@ -308,6 +308,17 @@ func registerProductRoute(api huma.API, file fileRepo.FileRepository, prodRepo p
 		Tags:          []string{"Product"},
 		DefaultStatus: http.StatusOK,
 	}, productHandler.GetProductById)
+
+	// DELETE /product/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-product-by-id",
+		Method:        http.MethodDelete,
+		Path:          "/product/{id}",
+		Summary:       "Delete Product By ID",
+		Description:   "Delete product by ID",
+		Tags:          []string{"Product"},
+		DefaultStatus: http.StatusOK,
+	}, productHandler.DeleteProductById)
 }
 
 func registerFileRoute(protected huma.API, public huma.API, fileRepository fileRepo.FileRepository) {

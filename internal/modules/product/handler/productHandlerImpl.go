@@ -172,3 +172,17 @@ func (p *productHandlerImpl) GetProductById(ctx context.Context, input *dto.GetP
 
 	return res, nil
 }
+
+func (p *productHandlerImpl) DeleteProductById(ctx context.Context, input *dto.DeleteProductByIdInputDto) (*dto.DeleteProductByIdOutputDto, error) {
+	err := p.productRepository.DeleteProductByID(ctx, input.ID)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to delete product", err)
+	}
+
+	res := &dto.DeleteProductByIdOutputDto{
+		Body: dto.DeleteProductByIdOutputDtoBody{
+			Message: "Product deleted successfully",
+		},
+	}
+	return res, nil
+}
