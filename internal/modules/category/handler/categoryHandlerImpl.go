@@ -76,3 +76,34 @@ func (c *categoryHandlerImpl) GetCategories(ctx context.Context, _ *struct{}) (*
 
 	return res, nil
 }
+
+func (c *categoryHandlerImpl) UpdateCategory(ctx context.Context, input *dto.UpdateCategoryByIdInputDto) (*dto.UpdateCategoryByIdOutputDto, error) {
+	err := c.categoryRepository.UpdateCategoryByID(ctx, input.ID, input.Body.Name)
+	if err != nil {
+		return nil, huma.Error404NotFound("Error updating category", err)
+	}
+
+	res := &dto.UpdateCategoryByIdOutputDto{
+		Body: dto.CategoryDto{
+			ID:   input.ID,
+			Name: input.Body.Name,
+		},
+	}
+
+	return res, nil
+}
+
+func (c *categoryHandlerImpl) DeleteCategory(ctx context.Context, input *dto.DeleteCategoryByIdInputDto) (*dto.DeleteCategoryByIdOutputDto, error) {
+	err := c.categoryRepository.DeleteCategoryByID(ctx, input.ID)
+	if err != nil {
+		return nil, huma.Error404NotFound("Error deleting category", err)
+	}
+
+	res := &dto.DeleteCategoryByIdOutputDto{
+		Body: dto.DeleteCategoryByIdOutputDtoBody{
+			Message: "Category deleted successfully",
+		},
+	}
+
+	return res, nil
+}

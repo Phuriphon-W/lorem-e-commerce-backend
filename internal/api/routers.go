@@ -270,6 +270,28 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Category"},
 		DefaultStatus: http.StatusOK,
 	}, categoryHandler.GetCategories)
+
+	// PUT /category/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "update-category-by-id",
+		Method:        http.MethodPut,
+		Path:          "/category/{id}",
+		Summary:       "Update Category By ID",
+		Description:   "Update a category by ID",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.UpdateCategory)
+
+	// DELETE /category/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-category-by-id",
+		Method:        http.MethodDelete,
+		Path:          "/category/{id}",
+		Summary:       "Delete Category By ID",
+		Description:   "Delete a category by ID",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.DeleteCategory)
 }
 
 func registerProductRoute(api huma.API, file fileRepo.FileRepository, prodRepo productRepo.ProductRepository) {

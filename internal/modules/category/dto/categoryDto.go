@@ -40,3 +40,32 @@ type (
 type GetCategoriesOutputDto struct {
 	Body []CategoryDto
 }
+
+// Update Category By ID
+type (
+	UpdateCategoryByIdInputDto struct {
+		ID   uuid.UUID `path:"id" required:"true" doc:"Category ID"`
+		Body struct {
+			Name string `json:"name" required:"true" minLength:"1" doc:"Category name" example:"Apparel"`
+		}
+	}
+
+	UpdateCategoryByIdOutputDto struct {
+		Body CategoryDto
+	}
+)
+
+// Delete Category By ID
+type (
+	DeleteCategoryByIdInputDto struct {
+		ID uuid.UUID `path:"id" required:"true" doc:"Category ID"`
+	}
+
+	DeleteCategoryByIdOutputDtoBody struct {
+		Message string `json:"message" doc:"Result message"`
+	}
+
+	DeleteCategoryByIdOutputDto struct {
+		Body DeleteCategoryByIdOutputDtoBody
+	}
+)
