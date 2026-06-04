@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"lorem-backend/internal/database"
 
 	"time"
@@ -21,6 +22,10 @@ func NewOrderPostgresRepository(db database.Database) OrderRepository {
 }
 
 func (r *orderPostgresRepository) CreateOrder(ctx context.Context, order *database.Order) (uuid.UUID, error) {
+	if len(order.OrderItems) == 0 {
+		return uuid.Nil, errors.New("cannot create an order without items")
+	}
+
 	result := gorm.WithResult()
 
 	err := gorm.G[database.Order](r.db.GetDb(), result).Create(ctx, order)
