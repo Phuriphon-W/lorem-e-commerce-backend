@@ -48,3 +48,16 @@ func (c *categoryPostgresRepository) GetCategories(ctx context.Context) ([]datab
 
 	return categories, nil
 }
+
+func (c *categoryPostgresRepository) UpdateCategoryByID(ctx context.Context, catID uuid.UUID, name string) error {
+	return c.db.GetDb().WithContext(ctx).
+		Model(&database.Category{}).
+		Where("id = ?", catID).
+		Updates(map[string]interface{}{"name": name}).Error
+}
+
+func (c *categoryPostgresRepository) DeleteCategoryByID(ctx context.Context, catID uuid.UUID) error {
+	return c.db.GetDb().WithContext(ctx).
+		Where("id = ?", catID).
+		Delete(&database.Category{}).Error
+}

@@ -180,3 +180,9 @@ func (r *productPostgresRepository) AddProductStocks(ctx context.Context, additi
 		return nil
 	})
 }
+
+func (r *productPostgresRepository) DeleteProductByID(ctx context.Context, productID uuid.UUID) error {
+	return r.db.GetDb().WithContext(ctx).
+		Where("id = ?", productID).
+		Delete(&database.Product{}).Error
+}

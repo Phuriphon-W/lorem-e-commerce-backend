@@ -47,4 +47,11 @@ lint:
 test:
 	go test -v -cover ./internal/...
 
+coverage-check:
+	go test -coverprofile coverage.out ./internal/modules/... ./internal/api/middleware/... ./internal/utils/...
+	@COVERAGE=$$(go tool cover -func coverage.out | grep total | awk '{print $$3}' | tr -d '%'); \
+	echo "Total coverage: $$COVERAGE%"; \
+	awk "BEGIN{if ($$COVERAGE + 0 < 80) {print \"FAIL: Coverage \" $$COVERAGE \"% is below 80% threshold\"; exit 1}}"
+	@rm -f coverage.out
+
 pre-commit: lint test

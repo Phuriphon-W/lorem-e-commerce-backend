@@ -16,4 +16,5 @@ type ProductRepository interface {
 	UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error
 	DeductProductStocks(ctx context.Context, deductions []StockDeduction) error
 	AddProductStocks(ctx context.Context, additions []StockDeduction) error
+	DeleteProductByID(ctx context.Context, productID uuid.UUID) error
 }

@@ -32,11 +32,6 @@ type ProductResponse struct {
 
 // Create Product
 type (
-	CreateProductInputDtoBody struct {
-		ProductFormDto
-		CategoryId uuid.UUID `form:"categoryId" required:"true" doc:"ID of the product category" example:"fdc93985-b4fd-40d3-ad6c-3fb94c6ec8c7"`
-	}
-
 	CreateProductInputDto struct {
 		RawBody huma.MultipartFormFiles[struct {
 			Name        string        `form:"name" required:"true" minLength:"1" doc:"Product name" example:"Shirt"`
@@ -85,5 +80,20 @@ type (
 
 	GetProductByIdOutputDto struct {
 		Body ProductResponse
+	}
+)
+
+// Delete Product By ID
+type (
+	DeleteProductByIdInputDto struct {
+		ID uuid.UUID `path:"id" required:"true" doc:"Product ID"`
+	}
+
+	DeleteProductByIdOutputDtoBody struct {
+		Message string `json:"message" doc:"Result message"`
+	}
+
+	DeleteProductByIdOutputDto struct {
+		Body DeleteProductByIdOutputDtoBody
 	}
 )

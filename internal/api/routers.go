@@ -270,6 +270,28 @@ func registerCategoryRoute(api huma.API, db database.Database) {
 		Tags:          []string{"Category"},
 		DefaultStatus: http.StatusOK,
 	}, categoryHandler.GetCategories)
+
+	// PUT /category/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "update-category-by-id",
+		Method:        http.MethodPut,
+		Path:          "/category/{id}",
+		Summary:       "Update Category By ID",
+		Description:   "Update a category by ID",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.UpdateCategory)
+
+	// DELETE /category/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-category-by-id",
+		Method:        http.MethodDelete,
+		Path:          "/category/{id}",
+		Summary:       "Delete Category By ID",
+		Description:   "Delete a category by ID",
+		Tags:          []string{"Category"},
+		DefaultStatus: http.StatusOK,
+	}, categoryHandler.DeleteCategory)
 }
 
 func registerProductRoute(api huma.API, file fileRepo.FileRepository, prodRepo productRepo.ProductRepository) {
@@ -308,6 +330,17 @@ func registerProductRoute(api huma.API, file fileRepo.FileRepository, prodRepo p
 		Tags:          []string{"Product"},
 		DefaultStatus: http.StatusOK,
 	}, productHandler.GetProductById)
+
+	// DELETE /product/{id}
+	huma.Register(api, huma.Operation{
+		OperationID:   "delete-product-by-id",
+		Method:        http.MethodDelete,
+		Path:          "/product/{id}",
+		Summary:       "Delete Product By ID",
+		Description:   "Delete product by ID",
+		Tags:          []string{"Product"},
+		DefaultStatus: http.StatusOK,
+	}, productHandler.DeleteProductById)
 }
 
 func registerFileRoute(protected huma.API, public huma.API, fileRepository fileRepo.FileRepository) {

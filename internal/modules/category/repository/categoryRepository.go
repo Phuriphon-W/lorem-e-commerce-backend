@@ -11,4 +11,6 @@ type CategoryRepository interface {
 	CreateCategory(ctx context.Context, category *database.Category) (uuid.UUID, error)
 	GetCategoryByID(ctx context.Context, catID uuid.UUID) (*database.Category, error)
 	GetCategories(ctx context.Context) ([]database.Category, error)
+	UpdateCategoryByID(ctx context.Context, catID uuid.UUID, name string) error
+	DeleteCategoryByID(ctx context.Context, catID uuid.UUID) error
 }

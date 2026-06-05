@@ -19,16 +19,12 @@ import (
 type authHandlerImpl struct {
 	authRepository repository.AuthRepository
 	emailService   emailService.EmailService
-	jwtSecret      string
-	jwtExpire      string
 }
 
 func NewAuthHandlerImpl(authRepo repository.AuthRepository, emailSvc emailService.EmailService) AuthHandler {
 	return &authHandlerImpl{
 		authRepository: authRepo,
 		emailService:   emailSvc,
-		jwtSecret:      config.GlobalConfig.JWTSecret,
-		jwtExpire:      config.GlobalConfig.JWTExpire,
 	}
 }
 
@@ -63,13 +59,13 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 		return nil, huma.Error500InternalServerError("Failed to create user", err)
 	}
 
-	duration, err := time.ParseDuration(a.jwtExpire)
+	duration, err := time.ParseDuration(config.GlobalConfig.JWTExpire)
 	if err != nil {
 		// Fallback to a default if the string is invalid
 		duration = 24 * time.Hour
 	}
 
-	token, err := utils.GenerateJWT(userID, a.jwtSecret, duration)
+	token, err := utils.GenerateJWT(userID, config.GlobalConfig.JWTSecret, duration)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
@@ -106,14 +102,14 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 	}
 
 	// Create token valid duration
-	duration, err := time.ParseDuration(a.jwtExpire)
+	duration, err := time.ParseDuration(config.GlobalConfig.JWTExpire)
 	if err != nil {
 		// Fallback to a default if the string is invalid
 		duration = 24 * time.Hour
 	}
 
 	// Generate JWT
-	token, err := utils.GenerateJWT(data.ID, a.jwtSecret, duration)
+	token, err := utils.GenerateJWT(data.ID, config.GlobalConfig.JWTSecret, duration)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
@@ -174,7 +170,7 @@ func (a *authHandlerImpl) ForgotPassword(ctx context.Context, input *dto.ForgotP
 	go func(userID uuid.UUID, username string, userEmail string) {
 		// Generate reset token (JWT) valid for 10 minutes
 		resetDuration := 10 * time.Minute
-		token, err := utils.GenerateJWT(userData.ID, a.jwtSecret, resetDuration)
+		token, err := utils.GenerateJWT(userData.ID, config.GlobalConfig.JWTSecret, resetDuration)
 		if err != nil {
 			log.Printf("Failed to generate reset token: %v\n", err)
 			return // Stop execution for this goroutine
@@ -194,7 +190,7 @@ func (a *authHandlerImpl) ForgotPassword(ctx context.Context, input *dto.ForgotP
 
 func (a *authHandlerImpl) ResetPassword(ctx context.Context, input *dto.ResetPasswordInputDto) (*dto.ResetPasswordOutputDto, error) {
 	// Verify token
-	claims, err := utils.VerifyJWT(input.Body.Token, a.jwtSecret)
+	claims, err := utils.VerifyJWT(input.Body.Token, config.GlobalConfig.JWTSecret)
 	if err != nil {
 		return nil, huma.Error401Unauthorized("Invalid or expired reset token.")
 	}

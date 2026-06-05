@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
@@ -35,21 +36,59 @@ func (s *UserRepositoryTestSuite) TearDownTest() {
 }
 
 func (s *UserRepositoryTestSuite) TestGetUsers() {
-	mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
-		AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now()).
-		AddRow(uuid.New(), "User2", "user2@mail.com", "Jane", "Doe", time.Now()).
-		AddRow(uuid.New(), "User3", "user3@mail.com", "Jack", "Doe", time.Now())
+	expectedQuery := regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."deleted_at" IS NULL`)
 
-	s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."deleted_at" IS NULL`)).
-		WillReturnRows(mockUsers)
+	testCases := []struct {
+		name    string
+		setup   func()
+		wantErr error
+		verify  func(users []database.User)
+	}{
+		{
+			name: "Success - returns users",
+			setup: func() {
+				mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
+					AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now()).
+					AddRow(uuid.New(), "User2", "user2@mail.com", "Jane", "Doe", time.Now()).
+					AddRow(uuid.New(), "User3", "user3@mail.com", "Jack", "Doe", time.Now())
+				s.mockDB.Mock.ExpectQuery(expectedQuery).WillReturnRows(mockUsers)
+			},
+			wantErr: nil,
+			verify: func(users []database.User) {
+				s.Len(users, 3)
+				s.Equal("John", users[0].FirstName)
+				s.Equal("user3@mail.com", users[2].Email)
+				s.Equal("User2", users[1].Username)
+			},
+		},
+		{
+			name: "Failure - database error",
+			setup: func() {
+				s.mockDB.Mock.ExpectQuery(expectedQuery).WillReturnError(errors.New("db error"))
+			},
+			wantErr: errors.New("db error"),
+			verify: func(users []database.User) {
+				s.Nil(users)
+			},
+		},
+	}
 
-	users, err := s.userRepo.GetUsers(s.ctx)
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			tc.setup()
 
-	s.NoError(err)
-	s.Len(users, 3)
-	s.Equal("John", users[0].FirstName)
-	s.Equal("user3@mail.com", users[2].Email)
-	s.Equal("User2", users[1].Username)
+			users, err := s.userRepo.GetUsers(s.ctx)
+
+			if tc.wantErr != nil {
+				s.Require().Error(err)
+				s.EqualError(err, tc.wantErr.Error())
+				tc.verify(users)
+			} else {
+				s.Require().NoError(err)
+				tc.verify(users)
+			}
+		})
+	}
 }
 
 func (s *UserRepositoryTestSuite) TestGetUserByID() {
@@ -105,6 +144,60 @@ func (s *UserRepositoryTestSuite) TestGetUserByID() {
 				s.Equal("John", user.FirstName)
 				s.Equal("Doe", user.LastName)
 				s.Equal("john@example.com", user.Email)
+			}
+		})
+	}
+}
+
+func (s *UserRepositoryTestSuite) TestUpdateUser() {
+	user := &database.User{
+		Base: database.Base{
+			ID: uuid.New(),
+		},
+		Username:  "john_doe",
+		FirstName: "John",
+		LastName:  "Doe",
+		Email:     "john@example.com",
+	}
+
+	testCases := []struct {
+		name    string
+		setup   func()
+		wantErr error
+	}{
+		{
+			name: "Success - update user attributes",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users"`)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Failure - database error on UPDATE",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "users"`)).
+					WillReturnError(errors.New("connection failed"))
+				s.mockDB.Mock.ExpectRollback()
+			},
+			wantErr: errors.New("connection failed"),
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			tc.setup()
+
+			err := s.userRepo.UpdateUser(s.ctx, user)
+
+			if tc.wantErr != nil {
+				s.Require().Error(err)
+				s.EqualError(err, tc.wantErr.Error())
+			} else {
+				s.Require().NoError(err)
 			}
 		})
 	}

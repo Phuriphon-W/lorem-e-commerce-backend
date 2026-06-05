@@ -30,6 +30,10 @@ func NewOrderHandlerImpl(orderRepo repository.OrderRepository, prodRepo productR
 }
 
 func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrderInputDto) (*dto.CreatedOrderOutputDto, error) {
+	if len(input.Body.Items) == 0 {
+		return nil, huma.Error400BadRequest("Order must contain at least one item")
+	}
+
 	var productIDs []uuid.UUID
 	itemMap := make(map[uuid.UUID]uint)
 
