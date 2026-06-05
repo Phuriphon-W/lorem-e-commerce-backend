@@ -35,8 +35,8 @@ jobs:
         with:
           go-version: '1.25'
 
-      - name: Run Tests
-        run: make test # This will execute 'go test -v ./internal/...'
+      - name: Run Tests with Coverage Gate
+        run: make coverage-check
 
   build-docker:
     name: Test Docker Build
