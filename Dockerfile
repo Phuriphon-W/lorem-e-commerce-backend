@@ -19,9 +19,15 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /server ./cmd/server/main.
 
 # --- Production Stage ---
 FROM alpine:latest AS prod
-WORKDIR /root/
-# Install CA certificates and timezone data
-RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /home/appuser/
+# Install CA certificates, timezone data, and curl
+RUN apk --no-cache add ca-certificates tzdata curl
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+USER appuser
 # Copy the pre-built binary file from the previous stage
-COPY --from=builder /server .
+COPY --chown=appuser:appgroup --from=builder /server .
+
+HEALTHCHECK --interval=10s --timeout=5s --retries=3 \
+  CMD curl -f http://localhost:5000/health || exit 1
+
 CMD ["./server"]

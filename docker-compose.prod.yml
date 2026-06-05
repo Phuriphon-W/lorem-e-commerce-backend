@@ -9,7 +9,9 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+    restart: unless-stopped
 
 include:
   - docker-compose.db.yml

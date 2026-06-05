@@ -70,6 +70,10 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 
 	registerAPIDocumentations(router)
 
+	router.GET("/health", func(c echo.Context) error {
+		return c.JSON(http.StatusOK, map[string]string{"status": "ok"})
+	})
+
 	humaConfig := createHumaConfig()
 	api := humaecho.New(router, humaConfig)
 
