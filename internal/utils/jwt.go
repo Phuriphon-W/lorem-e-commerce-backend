@@ -8,12 +8,13 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateJWT(userId uuid.UUID, secret string, duration time.Duration) (string, error) {
+func GenerateJWT(userId uuid.UUID, isAdmin bool, secret string, duration time.Duration) (string, error) {
 	// Create the Claims (Payload)
 	claims := jwt.MapClaims{
-		"id":  userId.String(),
-		"exp": time.Now().Add(duration).Unix(),
-		"iat": time.Now().Unix(), // Issued at
+		"id":      userId.String(),
+		"isAdmin": isAdmin,
+		"exp":     time.Now().Add(duration).Unix(),
+		"iat":     time.Now().Unix(), // Issued at
 	}
 
 	// Create the token using the signing method (HS256 is the standard)

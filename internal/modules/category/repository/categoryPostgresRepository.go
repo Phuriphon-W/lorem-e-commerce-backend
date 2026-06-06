@@ -61,3 +61,9 @@ func (c *categoryPostgresRepository) DeleteCategoryByID(ctx context.Context, cat
 		Where("id = ?", catID).
 		Delete(&database.Category{}).Error
 }
+
+func (c *categoryPostgresRepository) GetCategoriesCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := c.db.GetDb().WithContext(ctx).Model(&database.Category{}).Count(&count).Error
+	return count, err
+}

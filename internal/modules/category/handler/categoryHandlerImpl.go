@@ -107,3 +107,18 @@ func (c *categoryHandlerImpl) DeleteCategory(ctx context.Context, input *dto.Del
 
 	return res, nil
 }
+
+func (c *categoryHandlerImpl) GetCategoriesCount(ctx context.Context, input *struct{}) (*dto.GetCategoriesCountOutputDto, error) {
+	count, err := c.categoryRepository.GetCategoriesCount(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve categories count", err)
+	}
+
+	return &dto.GetCategoriesCountOutputDto{
+		Body: struct {
+			Count int64 `json:"count" doc:"Total number of categories"`
+		}{
+			Count: count,
+		},
+	}, nil
+}

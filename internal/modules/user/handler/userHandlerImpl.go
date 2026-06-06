@@ -30,12 +30,30 @@ func (u *userHandlerImpl) GetUserById(ctx context.Context, input *dto.GetUserByI
 		return nil, huma.Error404NotFound("User Not Found", fmt.Errorf("Failed to retrieve user with ID: %v, Error: %v", input.ID, err))
 	}
 
+	var isAdmin bool
+	if user.IsAdmin != nil {
+		isAdmin = *user.IsAdmin
+	}
+
+	userAddress := dto.UserAddress{
+		ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
+		Road:        utils.PtrToStringOrDefault(user.Road, "null"),
+		District:    utils.PtrToStringOrDefault(user.District, "null"),
+		SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
+		HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
+		Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+	}
+
 	res := &dto.GetUserByIdOutputDto{
 		Body: dto.UserDto{
 			ID:        user.ID,
 			Username:  user.Username,
-			LastName:  user.LastName,
 			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Address:   userAddress,
+			IsAdmin:   isAdmin,
 		},
 	}
 
@@ -62,6 +80,11 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 		return nil, huma.Error404NotFound("Failed to get current user data", err)
 	}
 
+	var isAdmin bool
+	if user.IsAdmin != nil {
+		isAdmin = *user.IsAdmin
+	}
+
 	userAddress := dto.UserAddress{
 		ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
 		Road:        utils.PtrToStringOrDefault(user.Road, "null"),
@@ -80,6 +103,7 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 			Email:     user.Email,
 			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
 			Address:   userAddress,
+			IsAdmin:   isAdmin,
 		},
 	}
 
@@ -129,6 +153,63 @@ func (u *userHandlerImpl) UpdateMe(ctx context.Context, input *dto.UpdateMeInput
 	return &dto.UpdateMeOutputDto{
 		Body: dto.UpdateMeOutputDtoBody{
 			Message: "Profile Updated Successfully",
+		},
+	}, nil
+}
+
+func (u *userHandlerImpl) GetUsers(ctx context.Context, input *dto.GetUsersInputDto) (*dto.GetUsersOutputDto, error) {
+	users, total, err := u.userRepository.GetUsers(ctx, input.PageNumber, input.PageSize, input.Search, input.Order)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve users", err)
+	}
+
+	userDtos := make([]dto.UserDto, len(users))
+	for i, user := range users {
+		var isAdmin bool
+		if user.IsAdmin != nil {
+			isAdmin = *user.IsAdmin
+		}
+
+		userAddress := dto.UserAddress{
+			ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
+			Road:        utils.PtrToStringOrDefault(user.Road, "null"),
+			District:    utils.PtrToStringOrDefault(user.District, "null"),
+			SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
+			HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
+			Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+		}
+
+		userDtos[i] = dto.UserDto{
+			ID:        user.ID,
+			Username:  user.Username,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+			Email:     user.Email,
+			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Address:   userAddress,
+			IsAdmin:   isAdmin,
+		}
+	}
+
+	return &dto.GetUsersOutputDto{
+		Body: dto.GetUsersOutputDtoBody{
+			Users: userDtos,
+			Total: total,
+		},
+	}, nil
+}
+
+func (u *userHandlerImpl) GetUsersCount(ctx context.Context, input *struct{}) (*dto.GetUsersCountOutputDto, error) {
+	count, err := u.userRepository.GetUsersCount(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve users count", err)
+	}
+
+	return &dto.GetUsersCountOutputDto{
+		Body: struct {
+			Count int64 `json:"count" doc:"Total number of users"`
+		}{
+			Count: count,
 		},
 	}, nil
 }

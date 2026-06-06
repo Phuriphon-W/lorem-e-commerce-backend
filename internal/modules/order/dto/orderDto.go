@@ -102,3 +102,9 @@ type (
 		Body UpdateOrderStatusOutputDtoBody
 	}
 )
+
+type GetOrdersCountOutputDto struct {
+	Body struct {
+		Count int64 `json:"count" doc:"Total number of orders"`
+	}
+}

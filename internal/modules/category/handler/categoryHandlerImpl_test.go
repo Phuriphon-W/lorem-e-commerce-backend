@@ -49,6 +49,11 @@ func (m *MockCategoryRepository) DeleteCategoryByID(ctx context.Context, catID u
 	return args.Error(0)
 }
 
+func (m *MockCategoryRepository) GetCategoriesCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return int64(args.Int(0)), args.Error(1)
+}
+
 // Suite Definition
 type CategoryHandlerTestSuite struct {
 	suite.Suite
@@ -396,4 +401,21 @@ func (s *CategoryHandlerTestSuite) TestDeleteCategory() {
 
 func TestCategoryHandlerSuite(t *testing.T) {
 	suite.Run(t, new(CategoryHandlerTestSuite))
+}
+
+func (s *CategoryHandlerTestSuite) TestGetCategoriesCount_Success() {
+	s.mockRepo.On("GetCategoriesCount", mock.Anything).Return(12, nil).Once()
+
+	res, err := s.handler.GetCategoriesCount(s.ctx, &struct{}{})
+	s.NoError(err)
+	s.NotNil(res)
+	s.Equal(int64(12), res.Body.Count)
+}
+
+func (s *CategoryHandlerTestSuite) TestGetCategoriesCount_Error() {
+	s.mockRepo.On("GetCategoriesCount", mock.Anything).Return(0, errors.New("db error")).Once()
+
+	res, err := s.handler.GetCategoriesCount(s.ctx, &struct{}{})
+	s.Error(err)
+	s.Nil(res)
 }

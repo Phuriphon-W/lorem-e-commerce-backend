@@ -48,17 +48,19 @@ func (a *authPostgresRepository) GetUserByEmail(ctx context.Context, email strin
 	ID           uuid.UUID
 	Username     string
 	PasswordHash string
+	IsAdmin      bool
 }, error) {
 
 	var result struct {
 		ID           uuid.UUID
 		Username     string
 		PasswordHash string
+		IsAdmin      bool
 	}
 
 	err := a.db.GetDb().WithContext(ctx).
 		Table("users").
-		Select("id", "username", "password_hash").
+		Select("id", "username", "password_hash", "is_admin").
 		Where("email = ?", email).
 		First(&result).Error
 

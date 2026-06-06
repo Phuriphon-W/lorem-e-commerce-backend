@@ -49,6 +49,16 @@ func NewPaymentHandlerImpl(
 }
 
 func (h *paymentHandlerImpl) CreateCheckoutSession(ctx context.Context, input *dto.CreateCheckoutInputDto) (*dto.CreateCheckoutOutputDto, error) {
+	// Ownership verification
+	authenticatedUserIDStr, ok := ctx.Value("userID").(string)
+	if !ok {
+		return nil, huma.Error401Unauthorized("Unauthorized")
+	}
+	isAdmin, _ := ctx.Value("isAdmin").(bool)
+	if !isAdmin && authenticatedUserIDStr != input.Body.UserID.String() {
+		return nil, huma.Error403Forbidden("Forbidden: You do not own this resource")
+	}
+
 	// Fetch the existing order
 	order, err := h.orderRepo.GetOrderByID(ctx, input.Body.OrderID)
 	if err != nil {

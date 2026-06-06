@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"lorem-backend/internal/database"
 
 	"github.com/google/uuid"
@@ -167,8 +168,18 @@ func (r *productPostgresRepository) DeductProductStocks(ctx context.Context, ded
 func (r *productPostgresRepository) AddProductStocks(ctx context.Context, additions []StockDeduction) error {
 	return r.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, item := range additions {
-			// Increment the stock safely
-			err := tx.Model(&database.Product{}).
+			var count int64
+			err := tx.Unscoped().Model(&database.Product{}).Where("id = ?", item.ProductID).Count(&count).Error
+			if err != nil {
+				return err
+			}
+			if count == 0 {
+				log.Printf("Warning: product %s was hard-deleted, skipping stock rollback", item.ProductID)
+				continue
+			}
+
+			// Increment the stock safely (using Unscoped to find soft-deleted products too)
+			err = tx.Unscoped().Model(&database.Product{}).
 				Where("id = ?", item.ProductID).
 				Update("available", gorm.Expr("available + ?", item.Quantity)).Error
 
@@ -185,4 +196,10 @@ func (r *productPostgresRepository) DeleteProductByID(ctx context.Context, produ
 	return r.db.GetDb().WithContext(ctx).
 		Where("id = ?", productID).
 		Delete(&database.Product{}).Error
+}
+
+func (r *productPostgresRepository) GetProductsCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.GetDb().WithContext(ctx).Model(&database.Product{}).Count(&count).Error
+	return count, err
 }

@@ -30,6 +30,16 @@ func NewOrderHandlerImpl(orderRepo repository.OrderRepository, prodRepo productR
 }
 
 func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrderInputDto) (*dto.CreatedOrderOutputDto, error) {
+	// Ownership verification
+	authenticatedUserIDStr, ok := ctx.Value("userID").(string)
+	if !ok {
+		return nil, huma.Error401Unauthorized("Unauthorized")
+	}
+	isAdmin, _ := ctx.Value("isAdmin").(bool)
+	if !isAdmin && authenticatedUserIDStr != input.Body.UserID.String() {
+		return nil, huma.Error403Forbidden("Forbidden: You do not own this resource")
+	}
+
 	if len(input.Body.Items) == 0 {
 		return nil, huma.Error400BadRequest("Order must contain at least one item")
 	}
@@ -143,6 +153,16 @@ func (h *orderHandlerImpl) GetOrderById(ctx context.Context, input *dto.GetOrder
 		return nil, huma.Error404NotFound("Order not found", err)
 	}
 
+	// Ownership verification
+	authenticatedUserIDStr, ok := ctx.Value("userID").(string)
+	if !ok {
+		return nil, huma.Error401Unauthorized("Unauthorized")
+	}
+	isAdmin, _ := ctx.Value("isAdmin").(bool)
+	if !isAdmin && order.UserID.String() != authenticatedUserIDStr {
+		return nil, huma.Error403Forbidden("Forbidden: You do not own this order")
+	}
+
 	return &dto.GetOrderByIdOutputDto{
 		Body: h.mapOrderToResponse(ctx, *order),
 	}, nil
@@ -157,6 +177,21 @@ func (h *orderHandlerImpl) UpdateOrderStatus(ctx context.Context, input *dto.Upd
 	return &dto.UpdateOrderStatusOutputDto{
 		Body: dto.UpdateOrderStatusOutputDtoBody{
 			Success: true,
+		},
+	}, nil
+}
+
+func (h *orderHandlerImpl) GetOrdersCount(ctx context.Context, input *struct{}) (*dto.GetOrdersCountOutputDto, error) {
+	count, err := h.orderRepository.GetOrdersCount(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve orders count", err)
+	}
+
+	return &dto.GetOrdersCountOutputDto{
+		Body: struct {
+			Count int64 `json:"count" doc:"Total number of orders"`
+		}{
+			Count: count,
 		},
 	}, nil
 }

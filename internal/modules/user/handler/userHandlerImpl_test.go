@@ -18,12 +18,12 @@ type MockUserRepository struct {
 	mock.Mock
 }
 
-func (m *MockUserRepository) GetUsers(ctx context.Context) ([]database.User, error) {
-	args := m.Called(ctx)
+func (m *MockUserRepository) GetUsers(ctx context.Context, page, pageSize int64, search, order string) ([]database.User, int64, error) {
+	args := m.Called(ctx, page, pageSize, search, order)
 	if args.Get(0) != nil {
-		return args.Get(0).([]database.User), args.Error(1)
+		return args.Get(0).([]database.User), int64(args.Int(1)), args.Error(2)
 	}
-	return nil, args.Error(1)
+	return nil, 0, args.Error(2)
 }
 
 func (m *MockUserRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*database.User, error) {
@@ -37,6 +37,11 @@ func (m *MockUserRepository) GetUserByID(ctx context.Context, userID uuid.UUID) 
 func (m *MockUserRepository) UpdateUser(ctx context.Context, user *database.User) error {
 	args := m.Called(ctx, user)
 	return args.Error(0)
+}
+
+func (m *MockUserRepository) GetUsersCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return int64(args.Int(0)), args.Error(1)
 }
 
 type UserHandlerTestSuite struct {
@@ -310,6 +315,117 @@ func (s *UserHandlerTestSuite) TestUpdateMe() {
 	}
 }
 
+func (s *UserHandlerTestSuite) TestGetUsers() {
+	usersList := []database.User{
+		{
+			Username:  "user1",
+			FirstName: "First1",
+			LastName:  "Last1",
+			Email:     "user1@example.com",
+		},
+		{
+			Username:  "user2",
+			FirstName: "First2",
+			LastName:  "Last2",
+			Email:     "user2@example.com",
+		},
+	}
+
+	testCases := []struct {
+		name          string
+		setupMock     func()
+		input         *dto.GetUsersInputDto
+		expectedError bool
+		verify        func(res *dto.GetUsersOutputDto)
+	}{
+		{
+			name: "Success - returns users list and total count",
+			input: &dto.GetUsersInputDto{
+				PageNumber: 1,
+				PageSize:   10,
+			},
+			setupMock: func() {
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(usersList, 2, nil).Once()
+			},
+			expectedError: false,
+			verify: func(res *dto.GetUsersOutputDto) {
+				s.NotNil(res)
+				s.Equal(int64(2), res.Body.Total)
+				s.Len(res.Body.Users, 2)
+				s.Equal("user1", res.Body.Users[0].Username)
+				s.Equal("user2", res.Body.Users[1].Username)
+			},
+		},
+		{
+			name: "Success - with keyword search and order",
+			input: &dto.GetUsersInputDto{
+				PageNumber: 1,
+				PageSize:   10,
+				Search:     "First1",
+				Order:      "first_name ASC",
+			},
+			setupMock: func() {
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), "First1", "first_name ASC").Return([]database.User{usersList[0]}, 1, nil).Once()
+			},
+			expectedError: false,
+			verify: func(res *dto.GetUsersOutputDto) {
+				s.NotNil(res)
+				s.Equal(int64(1), res.Body.Total)
+				s.Len(res.Body.Users, 1)
+				s.Equal("user1", res.Body.Users[0].Username)
+			},
+		},
+		{
+			name: "Failure - repository error",
+			input: &dto.GetUsersInputDto{
+				PageNumber: 1,
+				PageSize:   10,
+			},
+			setupMock: func() {
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(nil, 0, errors.New("repository error")).Once()
+			},
+			expectedError: true,
+			verify: func(res *dto.GetUsersOutputDto) {
+				s.Nil(res)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		s.Run(tc.name, func() {
+			s.SetupTest()
+			tc.setupMock()
+
+			res, err := s.handler.GetUsers(s.ctx, tc.input)
+
+			if tc.expectedError {
+				s.Error(err)
+			} else {
+				s.NoError(err)
+			}
+			tc.verify(res)
+			s.mockRepo.AssertExpectations(s.T())
+		})
+	}
+}
+
 func TestUserHandlerSuite(t *testing.T) {
 	suite.Run(t, new(UserHandlerTestSuite))
+}
+
+func (s *UserHandlerTestSuite) TestGetUsersCount_Success() {
+	s.mockRepo.On("GetUsersCount", mock.Anything).Return(15, nil).Once()
+
+	res, err := s.handler.GetUsersCount(s.ctx, &struct{}{})
+	s.NoError(err)
+	s.NotNil(res)
+	s.Equal(int64(15), res.Body.Count)
+}
+
+func (s *UserHandlerTestSuite) TestGetUsersCount_Error() {
+	s.mockRepo.On("GetUsersCount", mock.Anything).Return(0, errors.New("db error")).Once()
+
+	res, err := s.handler.GetUsersCount(s.ctx, &struct{}{})
+	s.Error(err)
+	s.Nil(res)
 }

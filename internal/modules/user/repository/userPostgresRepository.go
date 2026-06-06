@@ -18,14 +18,38 @@ func NewUserPostgresRepository(db database.Database) UserRepository {
 	}
 }
 
-func (r *userPostgresRepository) GetUsers(ctx context.Context) ([]database.User, error) {
-	users, err := gorm.G[database.User](r.db.GetDb()).Find(ctx)
+func (r *userPostgresRepository) GetUsers(ctx context.Context, page, pageSize int64, search, order string) ([]database.User, int64, error) {
+	var users []database.User
+	var total int64
 
-	if err != nil {
-		return nil, err
+	query := r.db.GetDb().WithContext(ctx).Model(&database.User{})
+
+	// Filter by Search
+	if search != "" {
+		searchTerm := "%" + search + "%"
+		query = query.Where("username ILIKE ? OR first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?", searchTerm, searchTerm, searchTerm, searchTerm)
 	}
 
-	return users, nil
+	// Count Total Records after search filters
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// Apply Ordering
+	if order != "" {
+		query = query.Order(order)
+	} else {
+		// Default order: created_at DESC
+		query = query.Order("created_at DESC")
+	}
+
+	offset := (page - 1) * pageSize
+	err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&users).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return users, total, nil
 }
 
 func (r *userPostgresRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*database.User, error) {
@@ -46,4 +70,10 @@ func (r *userPostgresRepository) UpdateUser(ctx context.Context, user *database.
 	}
 
 	return nil
+}
+
+func (r *userPostgresRepository) GetUsersCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.GetDb().WithContext(ctx).Model(&database.User{}).Count(&count).Error
+	return count, err
 }

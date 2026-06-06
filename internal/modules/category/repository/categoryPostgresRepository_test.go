@@ -309,3 +309,12 @@ func (s *CategoryRepositoryTestSuite) TestDeleteCategoryByID() {
 func TestCategoryRepository(t *testing.T) {
 	suite.Run(t, new(CategoryRepositoryTestSuite))
 }
+
+func (s *CategoryRepositoryTestSuite) TestGetCategoriesCount() {
+	s.mockDB.Mock.ExpectQuery(`^SELECT count\(\*\) FROM "categories"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(8))
+
+	count, err := s.categoryRepo.GetCategoriesCount(s.ctx)
+	s.NoError(err)
+	s.Equal(int64(8), count)
+}

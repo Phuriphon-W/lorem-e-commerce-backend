@@ -99,6 +99,11 @@ func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID
 	return args.Error(0)
 }
 
+func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepo.StockDeduction) error {
 	args := m.Called(ctx, deductions)
 	return args.Error(0)

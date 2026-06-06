@@ -23,6 +23,7 @@ type UserDto struct {
 	Email     string      `json:"email" required:"true" doc:"Email"`
 	Telephone string      `json:"telephone" doc:"Phone number"`
 	Address   UserAddress `json:"address" doc:"User address details"`
+	IsAdmin   bool        `json:"isAdmin" doc:"Whether the user is an admin"`
 }
 
 // Get user by ID
@@ -66,3 +67,28 @@ type (
 		Body UpdateMeOutputDtoBody
 	}
 )
+
+// Get all users (Admin only)
+type (
+	GetUsersInputDto struct {
+		PageNumber int64  `query:"pageNumber" default:"1" minimum:"1" doc:"Page number"`
+		PageSize   int64  `query:"pageSize" default:"20" minimum:"1" maximum:"100" doc:"Items per page"`
+		Search     string `query:"search" doc:"Search Keyword (Username, Name, Email)"`
+		Order      string `query:"orderBy" doc:"Query Order Condition"`
+	}
+
+	GetUsersOutputDtoBody struct {
+		Users []UserDto `json:"users"`
+		Total int64     `json:"total"`
+	}
+
+	GetUsersOutputDto struct {
+		Body GetUsersOutputDtoBody
+	}
+)
+
+type GetUsersCountOutputDto struct {
+	Body struct {
+		Count int64 `json:"count" doc:"Total number of users"`
+	}
+}

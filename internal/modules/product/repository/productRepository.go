@@ -17,4 +17,5 @@ type ProductRepository interface {
 	DeductProductStocks(ctx context.Context, deductions []StockDeduction) error
 	AddProductStocks(ctx context.Context, additions []StockDeduction) error
 	DeleteProductByID(ctx context.Context, productID uuid.UUID) error
+	GetProductsCount(ctx context.Context) (int64, error)
 }

@@ -15,7 +15,7 @@ func TestGenerateAndVerifyJWT_Success(t *testing.T) {
 	duration := time.Hour
 
 	// Generate
-	tokenString, err := GenerateJWT(userId, secret, duration)
+	tokenString, err := GenerateJWT(userId, false, secret, duration)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, tokenString)
 
@@ -26,6 +26,7 @@ func TestGenerateAndVerifyJWT_Success(t *testing.T) {
 
 	// Check claims
 	assert.Equal(t, userId.String(), claims["id"])
+	assert.Equal(t, false, claims["isAdmin"])
 	assert.WithinDuration(t, time.Now().Add(duration), time.Unix(int64(claims["exp"].(float64)), 0), time.Minute)
 }
 
@@ -38,7 +39,7 @@ func TestVerifyJWT_WrongSecret(t *testing.T) {
 	userId := uuid.New()
 	duration := time.Hour
 
-	tokenString, _ := GenerateJWT(userId, "rightsecret", duration)
+	tokenString, _ := GenerateJWT(userId, false, "rightsecret", duration)
 
 	_, err := VerifyJWT(tokenString, "wrongsecret")
 	assert.Error(t, err)
@@ -49,7 +50,7 @@ func TestVerifyJWT_ExpiredToken(t *testing.T) {
 	userId := uuid.New()
 	duration := -1 * time.Hour // Expired
 
-	tokenString, _ := GenerateJWT(userId, "supersecret", duration)
+	tokenString, _ := GenerateJWT(userId, false, "supersecret", duration)
 
 	_, err := VerifyJWT(tokenString, "supersecret")
 	assert.Error(t, err)

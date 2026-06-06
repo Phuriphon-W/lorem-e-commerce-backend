@@ -14,4 +14,5 @@ type OrderRepository interface {
 	GetOrderByID(ctx context.Context, orderID uuid.UUID) (*database.Order, error)
 	UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status database.OrderStatus) error
 	UpdateOrderSession(ctx context.Context, orderID uuid.UUID, sessionID, sessionURL string, expiresAt *time.Time) error
+	GetOrdersCount(ctx context.Context) (int64, error)
 }

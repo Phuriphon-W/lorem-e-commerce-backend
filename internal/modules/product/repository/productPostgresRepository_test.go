@@ -485,15 +485,43 @@ func (s *ProductRepositoryTestSuite) TestAddProductStocks() {
 			name: "Success - increments stock in transaction",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectCommit()
 			},
 			wantErr: nil,
 		},
 		{
+			name: "Success - skips stock increment for hard-deleted product",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Failure - db error on count query",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnError(errors.New("count failed"))
+				s.mockDB.Mock.ExpectRollback()
+			},
+			wantErr: errors.New("count failed"),
+		},
+		{
 			name: "Failure - db error on increment",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnError(errors.New("increment failed"))
 				s.mockDB.Mock.ExpectRollback()
 			},
@@ -563,4 +591,13 @@ func (s *ProductRepositoryTestSuite) TestDeleteProductByID() {
 
 func TestProductRepository(t *testing.T) {
 	suite.Run(t, new(ProductRepositoryTestSuite))
+}
+
+func (s *ProductRepositoryTestSuite) TestGetProductsCount() {
+	s.mockDB.Mock.ExpectQuery(`^SELECT count\(\*\) FROM "products"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(20))
+
+	count, err := s.productRepo.GetProductsCount(s.ctx)
+	s.NoError(err)
+	s.Equal(int64(20), count)
 }

@@ -94,6 +94,11 @@ func (m *MockOrderRepository) UpdateOrderSession(ctx context.Context, orderID uu
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) GetOrdersCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(int64), args.Error(1)
+}
+
 type MockProductRepository struct {
 	mock.Mock
 }
@@ -135,6 +140,11 @@ func (m *MockProductRepository) GetProductStock(ctx context.Context, productId u
 func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
 	args := m.Called(ctx, productID, updateData)
 	return args.Error(0)
+}
+
+func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepository.StockDeduction) error {
@@ -421,6 +431,7 @@ func (s *PaymentHandlerTestSuite) TestCreateCheckoutSession() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			s.SetupTest()
+			s.ctx = context.WithValue(s.ctx, "userID", tc.input.Body.UserID.String())
 			tc.setupMocks()
 
 			out, err := s.handler.CreateCheckoutSession(s.ctx, tc.input)

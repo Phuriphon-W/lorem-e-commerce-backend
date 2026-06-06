@@ -67,7 +67,9 @@ func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID 
 		Preload("OrderItems", func(db *gorm.DB) *gorm.DB {
 			return db.Order("created_at ASC")
 		}).
-		Preload("OrderItems.Product").
+		Preload("OrderItems.Product", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).
 		Find(&orders).Error
 
 	if err != nil {
@@ -78,11 +80,14 @@ func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID 
 }
 
 func (r *orderPostgresRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*database.Order, error) {
-	order, err := gorm.G[database.Order](r.db.GetDb()).
+	var order database.Order
+	err := r.db.GetDb().WithContext(ctx).
 		Where("id = ?", orderID).
-		Preload("OrderItems", nil).
-		Preload("OrderItems.Product", nil).
-		First(ctx)
+		Preload("OrderItems").
+		Preload("OrderItems.Product", func(db *gorm.DB) *gorm.DB {
+			return db.Unscoped()
+		}).
+		First(&order).Error
 
 	if err != nil {
 		return nil, err
@@ -107,4 +112,10 @@ func (r *orderPostgresRepository) UpdateOrderSession(ctx context.Context, orderI
 			"stripe_session_url":        sessionURL,
 			"stripe_session_expires_at": expiresAt,
 		}).Error
+}
+
+func (r *orderPostgresRepository) GetOrdersCount(ctx context.Context) (int64, error) {
+	var count int64
+	err := r.db.GetDb().WithContext(ctx).Model(&database.Order{}).Count(&count).Error
+	return count, err
 }

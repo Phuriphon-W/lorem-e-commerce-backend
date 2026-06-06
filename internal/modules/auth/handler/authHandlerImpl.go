@@ -65,7 +65,7 @@ func (a *authHandlerImpl) RegisterUser(ctx context.Context, input *dto.RegisterU
 		duration = 24 * time.Hour
 	}
 
-	token, err := utils.GenerateJWT(userID, config.GlobalConfig.JWTSecret, duration)
+	token, err := utils.GenerateJWT(userID, false, config.GlobalConfig.JWTSecret, duration)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
@@ -109,7 +109,7 @@ func (a *authHandlerImpl) SignInUser(ctx context.Context, input *dto.SignInUserI
 	}
 
 	// Generate JWT
-	token, err := utils.GenerateJWT(data.ID, config.GlobalConfig.JWTSecret, duration)
+	token, err := utils.GenerateJWT(data.ID, data.IsAdmin, config.GlobalConfig.JWTSecret, duration)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to generate session token", err)
 	}
@@ -170,7 +170,7 @@ func (a *authHandlerImpl) ForgotPassword(ctx context.Context, input *dto.ForgotP
 	go func(userID uuid.UUID, username string, userEmail string) {
 		// Generate reset token (JWT) valid for 10 minutes
 		resetDuration := 10 * time.Minute
-		token, err := utils.GenerateJWT(userData.ID, config.GlobalConfig.JWTSecret, resetDuration)
+		token, err := utils.GenerateJWT(userData.ID, userData.IsAdmin, config.GlobalConfig.JWTSecret, resetDuration)
 		if err != nil {
 			log.Printf("Failed to generate reset token: %v\n", err)
 			return // Stop execution for this goroutine
