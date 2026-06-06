@@ -107,7 +107,7 @@ type (
 			Description string        `form:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
 			Price       float32       `form:"price" required:"true" minimum:"0.01" doc:"Price" example:"19.99"`
 			Available   uint          `form:"available" required:"true" minimum:"0" doc:"Available stock quantity" example:"100"`
-			ImageFile   huma.FormFile `form:"image_file" doc:"Optional image file of the product"`
+			ImageFile   huma.FormFile `form:"image_file" required:"false" doc:"Optional image file of the product"`
 			CategoryId  uuid.UUID     `form:"categoryId" required:"true" doc:"ID of the product category" example:"fdc93985-b4fd-40d3-ad6c-3fb94c6ec8c7"`
 		}]
 	}

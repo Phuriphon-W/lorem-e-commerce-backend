@@ -27,9 +27,33 @@ func NewProductPostgresRepository(db database.Database) ProductRepository {
 }
 
 func (r *productPostgresRepository) CreateProduct(ctx context.Context, product *database.Product) (uuid.UUID, error) {
+	var existing database.Product
+	err := r.db.GetDb().WithContext(ctx).Unscoped().Where("name = ?", product.Name).First(&existing).Error
+	if err == nil {
+		if existing.DeletedAt.Valid {
+			err = r.db.GetDb().WithContext(ctx).Unscoped().
+				Model(&database.Product{}).
+				Where("id = ?", existing.ID).
+				Updates(map[string]interface{}{
+					"deleted_at":  nil,
+					"name":        product.Name,
+					"description": product.Description,
+					"price":       product.Price,
+					"available":   product.Available,
+					"obj_key":     product.ImageObjKey,
+					"category_id": product.CategoryID,
+				}).Error
+			if err != nil {
+				return uuid.Nil, err
+			}
+			product.ID = existing.ID
+			return existing.ID, nil
+		}
+	}
+
 	result := gorm.WithResult()
 
-	err := gorm.G[database.Product](r.db.GetDb(), result).Create(ctx, product)
+	err = gorm.G[database.Product](r.db.GetDb(), result).Create(ctx, product)
 	if err != nil {
 		return uuid.Nil, err
 	}
