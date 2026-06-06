@@ -13,6 +13,7 @@ import (
 	productRepo "lorem-backend/internal/modules/product/repository"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 type cartHandlerImpl struct {
@@ -36,45 +37,61 @@ func (h *cartHandlerImpl) GetCartByUserId(ctx context.Context, input *dto.GetCar
 		return nil, huma.Error404NotFound("Cart not found", err)
 	}
 
-	cartItems := make([]dto.CartItemDto, len(cart.CartItems))
+	var activeItems []database.CartItem
+	var orphanedProductIDs []uuid.UUID
+
+	for _, item := range cart.CartItems {
+		if item.Product.ID == uuid.Nil {
+			orphanedProductIDs = append(orphanedProductIDs, item.ProductID)
+		} else {
+			activeItems = append(activeItems, item)
+		}
+	}
+
+	// If there are orphaned items, clean them up from the DB
+	if len(orphanedProductIDs) > 0 {
+		_ = h.cartRepo.RemoveCartItems(ctx, cart.ID, orphanedProductIDs)
+	}
+
+	cartItems := make([]dto.CartItemDto, len(activeItems))
 
 	var wg sync.WaitGroup
 
-	for i, item := range cart.CartItems {
+	for i, item := range activeItems {
 		wg.Add(1)
 
-		go func() {
+		go func(idx int, cItem database.CartItem) {
 			defer wg.Done()
 
 			// generate product image url
-			itemImageUrl, err := h.fileRepo.GeneratePresignUrl(ctx, item.Product.ImageObjKey)
+			itemImageUrl, err := h.fileRepo.GeneratePresignUrl(ctx, cItem.Product.ImageObjKey)
 			if err != nil {
-				fmt.Printf("Error generating URL for %s: %v\n", item.Product.ID, err)
+				fmt.Printf("Error generating URL for %s: %v\n", cItem.Product.ID, err)
 				itemImageUrl = ""
 			}
 
 			// get available in stock
-			available, err := h.productRepo.GetProductStock(ctx, item.ProductID)
+			available, err := h.productRepo.GetProductStock(ctx, cItem.ProductID)
 			if err != nil {
-				fmt.Printf("Error getting available amount for product with id: %v", item.ProductID)
+				fmt.Printf("Error getting available amount for product with id: %v", cItem.ProductID)
 				available = 0
 			}
 
 			// Map to DTO
-			cartItems[i] = dto.CartItemDto{
-				ProductID:   item.Product.ID,
-				Name:        item.Product.Name,
-				Description: item.Product.Description,
-				Price:       item.Product.Price,
+			cartItems[idx] = dto.CartItemDto{
+				ProductID:   cItem.Product.ID,
+				Name:        cItem.Product.Name,
+				Description: cItem.Product.Description,
+				Price:       cItem.Product.Price,
 				ImageURL:    itemImageUrl,
-				Quantity:    item.Quantity,
+				Quantity:    cItem.Quantity,
 				Available:   available,
 				Category: catDto.CategoryDto{
-					ID:   item.Product.Category.ID,
-					Name: item.Product.Category.Name,
+					ID:   cItem.Product.Category.ID,
+					Name: cItem.Product.Category.Name,
 				},
 			}
-		}()
+		}(i, item)
 	}
 
 	wg.Wait()

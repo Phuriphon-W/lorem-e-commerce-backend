@@ -31,6 +31,7 @@ func (m *MockAuthRepository) GetUserByEmail(ctx context.Context, email string) (
 	ID           uuid.UUID
 	Username     string
 	PasswordHash string
+	IsAdmin      bool
 }, error) {
 	args := m.Called(ctx, email)
 	if args.Get(0) != nil {
@@ -38,6 +39,7 @@ func (m *MockAuthRepository) GetUserByEmail(ctx context.Context, email string) (
 			ID           uuid.UUID
 			Username     string
 			PasswordHash string
+			IsAdmin      bool
 		}), args.Error(1)
 	}
 	return nil, args.Error(1)
@@ -166,7 +168,8 @@ func (s *AuthHandlerTestSuite) TestRegisterUser() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, IsAdmin: false}, nil).Once()
 			},
 			jwtExpire:     "24h",
 			expectedError: true,
@@ -254,7 +257,8 @@ func (s *AuthHandlerTestSuite) TestSignInUser() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username, PasswordHash: hashedPassword}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, PasswordHash: hashedPassword, IsAdmin: false}, nil).Once()
 			},
 			jwtExpire:     "1h",
 			expectedError: false,
@@ -274,7 +278,8 @@ func (s *AuthHandlerTestSuite) TestSignInUser() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username, PasswordHash: hashedPassword}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, PasswordHash: hashedPassword, IsAdmin: false}, nil).Once()
 			},
 			jwtExpire:     "invalid-duration",
 			expectedError: false,
@@ -303,7 +308,8 @@ func (s *AuthHandlerTestSuite) TestSignInUser() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username, PasswordHash: wrongHash}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, PasswordHash: wrongHash, IsAdmin: false}, nil).Once()
 			},
 			jwtExpire:     "24h",
 			expectedError: true,
@@ -367,7 +373,8 @@ func (s *AuthHandlerTestSuite) TestForgotPassword() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username, PasswordHash: "hashed"}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, PasswordHash: "hashed", IsAdmin: false}, nil).Once()
 
 				s.mockEmail.On("SendResetPasswordEmail", email, username, mock.Anything).
 					Return(nil).
@@ -411,7 +418,8 @@ func (s *AuthHandlerTestSuite) TestForgotPassword() {
 					ID           uuid.UUID
 					Username     string
 					PasswordHash string
-				}{ID: userID, Username: username, PasswordHash: "hashed"}, nil).Once()
+					IsAdmin      bool
+				}{ID: userID, Username: username, PasswordHash: "hashed", IsAdmin: false}, nil).Once()
 
 				// Even when SMTP returns error, the mock email service still sends a signal
 				s.mockEmail.On("SendResetPasswordEmail", email, username, mock.Anything).
@@ -459,7 +467,7 @@ func (s *AuthHandlerTestSuite) TestForgotPassword() {
 func (s *AuthHandlerTestSuite) TestResetPassword() {
 	userID := uuid.New()
 	secret := "test-secret-at-least-thirty-two-bytes-long"
-	validToken, _ := utils.GenerateJWT(userID, secret, 10*time.Minute)
+	validToken, _ := utils.GenerateJWT(userID, false, secret, 10*time.Minute)
 
 	testCases := []struct {
 		name          string

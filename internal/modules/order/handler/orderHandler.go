@@ -10,4 +10,5 @@ type OrderHandler interface {
 	GetOrders(ctx context.Context, input *dto.GetOrdersInputDto) (*dto.GetOrdersOutputDto, error)
 	GetOrderById(ctx context.Context, input *dto.GetOrderByIdInputDto) (*dto.GetOrderByIdOutputDto, error)
 	UpdateOrderStatus(ctx context.Context, input *dto.UpdateOrderStatusInputDto) (*dto.UpdateOrderStatusOutputDto, error)
+	GetOrdersCount(ctx context.Context, input *struct{}) (*dto.GetOrdersCountOutputDto, error)
 }

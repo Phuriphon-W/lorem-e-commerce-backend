@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// MiddlewareTestSuite tests the VerifyToken middleware via humatest.
+// MiddlewareTestSuite tests the VerifyToken, RequireAdmin, and RequireCustomer middlewares via humatest.
 type MiddlewareTestSuite struct {
 	suite.Suite
 	testAPI humatest.TestAPI
@@ -30,6 +30,10 @@ func (s *MiddlewareTestSuite) SetupTest() {
 		JWTSecret: s.secret,
 	}
 	_, s.testAPI = humatest.New(s.T(), huma.DefaultConfig("Test API", "1.0.0"))
+}
+
+func (s *MiddlewareTestSuite) TestVerifyToken() {
+	s.SetupTest()
 	s.testAPI.UseMiddleware(middleware.VerifyToken(s.testAPI))
 
 	huma.Register(s.testAPI, huma.Operation{
@@ -39,21 +43,19 @@ func (s *MiddlewareTestSuite) SetupTest() {
 	}, func(ctx context.Context, input *struct{}) (*struct{}, error) {
 		return nil, nil
 	})
-}
 
-func (s *MiddlewareTestSuite) TestVerifyToken() {
 	userID := uuid.New()
 
 	// 1. Success - valid token
-	validToken, err := utils.GenerateJWT(userID, s.secret, 10*time.Minute)
+	validToken, err := utils.GenerateJWT(userID, false, s.secret, 10*time.Minute)
 	s.Require().NoError(err)
 
 	// 3. Failure - expired JWT
-	expiredToken, err := utils.GenerateJWT(userID, s.secret, -10*time.Minute)
+	expiredToken, err := utils.GenerateJWT(userID, false, s.secret, -10*time.Minute)
 	s.Require().NoError(err)
 
 	// 5. Failure - wrong secret
-	wrongSecretToken, err := utils.GenerateJWT(userID, "wrong-secret", 10*time.Minute)
+	wrongSecretToken, err := utils.GenerateJWT(userID, false, "wrong-secret", 10*time.Minute)
 	s.Require().NoError(err)
 
 	tests := []struct {
@@ -90,8 +92,6 @@ func (s *MiddlewareTestSuite) TestVerifyToken() {
 
 	for _, tc := range tests {
 		s.Run(tc.name, func() {
-			s.SetupTest() // Clean slate for each test case
-
 			var resp *http.Response
 			if tc.cookieHeader != "" {
 				resp = s.testAPI.Get("/test", tc.cookieHeader).Result()
@@ -102,6 +102,50 @@ func (s *MiddlewareTestSuite) TestVerifyToken() {
 			s.Equal(tc.expectedCode, resp.StatusCode)
 		})
 	}
+}
+
+func (s *MiddlewareTestSuite) TestRequireAdminAndCustomer() {
+	s.SetupTest()
+	s.testAPI.UseMiddleware(middleware.VerifyToken(s.testAPI))
+
+	huma.Register(s.testAPI, huma.Operation{
+		Method:      http.MethodGet,
+		Path:        "/admin",
+		OperationID: "admin-sentinel",
+		Middlewares: huma.Middlewares{middleware.RequireAdmin(s.testAPI)},
+	}, func(ctx context.Context, input *struct{}) (*struct{}, error) {
+		return nil, nil
+	})
+
+	huma.Register(s.testAPI, huma.Operation{
+		Method:      http.MethodGet,
+		Path:        "/customer",
+		OperationID: "customer-sentinel",
+		Middlewares: huma.Middlewares{middleware.RequireCustomer(s.testAPI)},
+	}, func(ctx context.Context, input *struct{}) (*struct{}, error) {
+		return nil, nil
+	})
+
+	userID := uuid.New()
+	adminToken, err := utils.GenerateJWT(userID, true, s.secret, 10*time.Minute)
+	s.Require().NoError(err)
+
+	customerToken, err := utils.GenerateJWT(userID, false, s.secret, 10*time.Minute)
+	s.Require().NoError(err)
+
+	// Admin Endpoint Tests
+	resp := s.testAPI.Get("/admin", fmt.Sprintf("Cookie: authToken=%s", adminToken)).Result()
+	s.Equal(http.StatusNoContent, resp.StatusCode)
+
+	resp = s.testAPI.Get("/admin", fmt.Sprintf("Cookie: authToken=%s", customerToken)).Result()
+	s.Equal(http.StatusForbidden, resp.StatusCode)
+
+	// Customer Endpoint Tests
+	resp = s.testAPI.Get("/customer", fmt.Sprintf("Cookie: authToken=%s", customerToken)).Result()
+	s.Equal(http.StatusNoContent, resp.StatusCode)
+
+	resp = s.testAPI.Get("/customer", fmt.Sprintf("Cookie: authToken=%s", adminToken)).Result()
+	s.Equal(http.StatusForbidden, resp.StatusCode)
 }
 
 func TestMiddlewareSuite(t *testing.T) {

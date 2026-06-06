@@ -123,13 +123,14 @@ func (s *AuthRepositoryTestSuite) TestGetUserByEmail() {
 			ID           uuid.UUID
 			Username     string
 			PasswordHash string
+			IsAdmin      bool
 		})
 	}{
 		{
 			name: "Success - returns user details by email",
 			setup: func() {
-				rows := sqlmock.NewRows([]string{"id", "username", "password_hash"}).
-					AddRow(userID, "johndoe", "hashed_password")
+				rows := sqlmock.NewRows([]string{"id", "username", "password_hash", "is_admin"}).
+					AddRow(userID, "johndoe", "hashed_password", false)
 				s.mockDB.Mock.ExpectQuery(`SELECT .* FROM "users" WHERE email = \$1.*`).
 					WithArgs(email, 1).
 					WillReturnRows(rows)
@@ -139,11 +140,13 @@ func (s *AuthRepositoryTestSuite) TestGetUserByEmail() {
 				ID           uuid.UUID
 				Username     string
 				PasswordHash string
+				IsAdmin      bool
 			}) {
 				s.NotNil(res)
 				s.Equal(userID, res.ID)
 				s.Equal("johndoe", res.Username)
 				s.Equal("hashed_password", res.PasswordHash)
+				s.Equal(false, res.IsAdmin)
 			},
 		},
 		{
@@ -158,6 +161,7 @@ func (s *AuthRepositoryTestSuite) TestGetUserByEmail() {
 				ID           uuid.UUID
 				Username     string
 				PasswordHash string
+				IsAdmin      bool
 			}) {
 				s.Nil(res)
 			},
@@ -174,6 +178,7 @@ func (s *AuthRepositoryTestSuite) TestGetUserByEmail() {
 				ID           uuid.UUID
 				Username     string
 				PasswordHash string
+				IsAdmin      bool
 			}) {
 				s.Nil(res)
 			},

@@ -30,6 +30,8 @@ type Config struct {
 	SmtpUser            string        `mapstructure:"SMTP_USER"`
 	SmtpPassword        string        `mapstructure:"SMTP_PASSWORD"`
 	SmtpFrom            string        `mapstructure:"SMTP_FROM"`
+	RateLimitLimit      int           `mapstructure:"RATE_LIMIT_LIMIT"`
+	RateLimitPeriodSec  int           `mapstructure:"RATE_LIMIT_PERIOD_SEC"`
 }
 
 var GlobalConfig *Config
@@ -50,6 +52,8 @@ func LoadConfig() {
 	viper.SetDefault("FRONTEND_URL", "http://localhost:3000")
 	viper.SetDefault("AWS_REGION", "ap-southeast-1")
 	viper.SetDefault("STRIPE_SESSION_EXPIRE", "30m")
+	viper.SetDefault("RATE_LIMIT_LIMIT", 5)
+	viper.SetDefault("RATE_LIMIT_PERIOD_SEC", 60)
 
 	// Set empty defaults for required secrets so Viper unmarshals them from ENV
 	viper.SetDefault("JWT_SECRET", "")

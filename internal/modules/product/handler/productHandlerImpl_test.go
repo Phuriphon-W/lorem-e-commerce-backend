@@ -87,6 +87,11 @@ func (m *MockProductRepository) DeleteProductByID(ctx context.Context, productID
 	return args.Error(0)
 }
 
+func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return int64(args.Int(0)), args.Error(1)
+}
+
 // MockFileRepository is a mock of file.FileRepository
 type MockFileRepository struct {
 	mock.Mock
@@ -148,7 +153,7 @@ func createCreateProductInput(
 ) *dto.CreateProductInputDto {
 	type productMultipartFormFields = struct {
 		Name        string        `form:"name" required:"true" minLength:"1" doc:"Product name" example:"Shirt"`
-		Description string        `form:"description" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
+		Description string        `form:"description" required:"true" maxLength:"500" doc:"Description" example:"A comfortable cotton shirt."`
 		Price       float32       `form:"price" required:"true" minimum:"0.01" doc:"Price" example:"19.99"`
 		Available   uint          `form:"available" required:"true" minimum:"0" doc:"Available stock quantity" example:"100"`
 		ImageFile   huma.FormFile `form:"image_file" required:"true" doc:"Image file of the product"`
@@ -526,4 +531,21 @@ func (s *ProductHandlerTestSuite) TestDeleteProductById() {
 
 func TestProductHandlerSuite(t *testing.T) {
 	suite.Run(t, new(ProductHandlerTestSuite))
+}
+
+func (s *ProductHandlerTestSuite) TestGetProductsCount_Success() {
+	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(150, nil).Once()
+
+	res, err := s.handler.GetProductsCount(s.ctx, &struct{}{})
+	s.NoError(err)
+	s.NotNil(res)
+	s.Equal(int64(150), res.Body.Count)
+}
+
+func (s *ProductHandlerTestSuite) TestGetProductsCount_Error() {
+	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(0, errors.New("db error")).Once()
+
+	res, err := s.handler.GetProductsCount(s.ctx, &struct{}{})
+	s.Error(err)
+	s.Nil(res)
 }

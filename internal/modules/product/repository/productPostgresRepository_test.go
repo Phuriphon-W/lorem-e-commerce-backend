@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"lorem-backend/internal/database"
 
@@ -50,6 +51,10 @@ func (s *ProductRepositoryTestSuite) TestCreateProduct() {
 		{
 			name: "Success - inserts product",
 			setup: func() {
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "products" WHERE name = $1 ORDER BY "products"."id" LIMIT $2`)).
+					WithArgs(product.Name, 1).
+					WillReturnError(gorm.ErrRecordNotFound)
+
 				s.mockDB.Mock.ExpectBegin()
 				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "products"`)).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(productID))
@@ -58,8 +63,30 @@ func (s *ProductRepositoryTestSuite) TestCreateProduct() {
 			wantErr: nil,
 		},
 		{
+			name: "Success - restores and updates soft-deleted product",
+			setup: func() {
+				deletedAt := time.Now()
+				rows := sqlmock.NewRows([]string{"id", "name", "deleted_at"}).
+					AddRow(productID, product.Name, deletedAt)
+
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "products" WHERE name = $1 ORDER BY "products"."id" LIMIT $2`)).
+					WithArgs(product.Name, 1).
+					WillReturnRows(rows)
+
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "products" SET`)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: nil,
+		},
+		{
 			name: "Failure - insert error",
 			setup: func() {
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "products" WHERE name = $1 ORDER BY "products"."id" LIMIT $2`)).
+					WithArgs(product.Name, 1).
+					WillReturnError(gorm.ErrRecordNotFound)
+
 				s.mockDB.Mock.ExpectBegin()
 				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "products"`)).
 					WillReturnError(errors.New("db error"))
@@ -485,15 +512,43 @@ func (s *ProductRepositoryTestSuite) TestAddProductStocks() {
 			name: "Success - increments stock in transaction",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectCommit()
 			},
 			wantErr: nil,
 		},
 		{
+			name: "Success - skips stock increment for hard-deleted product",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: nil,
+		},
+		{
+			name: "Failure - db error on count query",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnError(errors.New("count failed"))
+				s.mockDB.Mock.ExpectRollback()
+			},
+			wantErr: errors.New("count failed"),
+		},
+		{
 			name: "Failure - db error on increment",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectQuery(`SELECT count\(\*\) FROM "products"`).
+					WithArgs(prodID).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
 				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnError(errors.New("increment failed"))
 				s.mockDB.Mock.ExpectRollback()
 			},
@@ -563,4 +618,13 @@ func (s *ProductRepositoryTestSuite) TestDeleteProductByID() {
 
 func TestProductRepository(t *testing.T) {
 	suite.Run(t, new(ProductRepositoryTestSuite))
+}
+
+func (s *ProductRepositoryTestSuite) TestGetProductsCount() {
+	s.mockDB.Mock.ExpectQuery(`^SELECT count\(\*\) FROM "products"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(20))
+
+	count, err := s.productRepo.GetProductsCount(s.ctx)
+	s.NoError(err)
+	s.Equal(int64(20), count)
 }

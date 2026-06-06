@@ -13,4 +13,5 @@ type CategoryRepository interface {
 	GetCategories(ctx context.Context) ([]database.Category, error)
 	UpdateCategoryByID(ctx context.Context, catID uuid.UUID, name string) error
 	DeleteCategoryByID(ctx context.Context, catID uuid.UUID) error
+	GetCategoriesCount(ctx context.Context) (int64, error)
 }

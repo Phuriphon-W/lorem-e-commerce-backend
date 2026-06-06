@@ -10,4 +10,6 @@ type ProductHandler interface {
 	GetProducts(ctx context.Context, input *dto.GetProductsInputDto) (*dto.GetProductsOutputDto, error)
 	GetProductById(ctx context.Context, input *dto.GetProductByIdInputDto) (*dto.GetProductByIdOutputDto, error)
 	DeleteProductById(ctx context.Context, input *dto.DeleteProductByIdInputDto) (*dto.DeleteProductByIdOutputDto, error)
+	UpdateProduct(ctx context.Context, input *dto.UpdateProductInputDto) (*dto.UpdatedProductOutputDto, error)
+	GetProductsCount(ctx context.Context, input *struct{}) (*dto.GetProductsCountOutputDto, error)
 }

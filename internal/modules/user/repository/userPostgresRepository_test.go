@@ -36,39 +36,112 @@ func (s *UserRepositoryTestSuite) TearDownTest() {
 }
 
 func (s *UserRepositoryTestSuite) TestGetUsers() {
-	expectedQuery := regexp.QuoteMeta(`SELECT * FROM "users" WHERE "users"."deleted_at" IS NULL`)
+	defaultCountQuery := `^SELECT count\(\*\) FROM "users"`
+	defaultFindQuery := `^SELECT \* FROM "users"`
 
 	testCases := []struct {
-		name    string
-		setup   func()
-		wantErr error
-		verify  func(users []database.User)
+		name     string
+		page     int64
+		pageSize int64
+		search   string
+		order    string
+		setup    func()
+		wantErr  error
+		verify   func(users []database.User, total int64)
 	}{
 		{
-			name: "Success - returns users",
+			name:     "Success - returns users and count",
+			page:     1,
+			pageSize: 10,
+			search:   "",
+			order:    "",
 			setup: func() {
+				s.mockDB.Mock.ExpectQuery(defaultCountQuery).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(3))
+
 				mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
 					AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now()).
 					AddRow(uuid.New(), "User2", "user2@mail.com", "Jane", "Doe", time.Now()).
 					AddRow(uuid.New(), "User3", "user3@mail.com", "Jack", "Doe", time.Now())
-				s.mockDB.Mock.ExpectQuery(expectedQuery).WillReturnRows(mockUsers)
+				s.mockDB.Mock.ExpectQuery(defaultFindQuery).WillReturnRows(mockUsers)
 			},
 			wantErr: nil,
-			verify: func(users []database.User) {
+			verify: func(users []database.User, total int64) {
 				s.Len(users, 3)
+				s.Equal(int64(3), total)
 				s.Equal("John", users[0].FirstName)
 				s.Equal("user3@mail.com", users[2].Email)
 				s.Equal("User2", users[1].Username)
 			},
 		},
 		{
-			name: "Failure - database error",
+			name:     "Success - with keyword search",
+			page:     1,
+			pageSize: 10,
+			search:   "John",
+			order:    "",
 			setup: func() {
-				s.mockDB.Mock.ExpectQuery(expectedQuery).WillReturnError(errors.New("db error"))
+				// Verify count query contains ILIKE checks
+				searchCountQuery := `^SELECT count\(\*\) FROM "users" WHERE \(username ILIKE .* OR first_name ILIKE .* OR last_name ILIKE .* OR email ILIKE .*\)`
+				s.mockDB.Mock.ExpectQuery(searchCountQuery).
+					WithArgs("%John%", "%John%", "%John%", "%John%").
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(1))
+
+				// Verify find query also contains search checks
+				searchFindQuery := `^SELECT \* FROM "users" WHERE \(username ILIKE .* OR first_name ILIKE .* OR last_name ILIKE .* OR email ILIKE .*\)`
+				mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
+					AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now())
+				s.mockDB.Mock.ExpectQuery(searchFindQuery).
+					WithArgs("%John%", "%John%", "%John%", "%John%", 10).
+					WillReturnRows(mockUsers)
+			},
+			wantErr: nil,
+			verify: func(users []database.User, total int64) {
+				s.Len(users, 1)
+				s.Equal(int64(1), total)
+				s.Equal("John", users[0].FirstName)
+			},
+		},
+		{
+			name:     "Success - with custom ordering",
+			page:     1,
+			pageSize: 10,
+			search:   "",
+			order:    "first_name ASC, last_name ASC",
+			setup: func() {
+				s.mockDB.Mock.ExpectQuery(defaultCountQuery).
+					WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(2))
+
+				// Verify find query contains ORDER BY clause
+				orderFindQuery := `^SELECT \* FROM "users" .* ORDER BY first_name ASC, last_name ASC`
+				mockUsers := s.mockDB.Mock.NewRows([]string{"id", "username", "email", "first_name", "last_name", "created_at"}).
+					AddRow(uuid.New(), "User2", "user2@mail.com", "Jane", "Doe", time.Now()).
+					AddRow(uuid.New(), "User1", "user1@mail.com", "John", "Doe", time.Now())
+				s.mockDB.Mock.ExpectQuery(orderFindQuery).
+					WithArgs(10).
+					WillReturnRows(mockUsers)
+			},
+			wantErr: nil,
+			verify: func(users []database.User, total int64) {
+				s.Len(users, 2)
+				s.Equal(int64(2), total)
+				s.Equal("Jane", users[0].FirstName)
+				s.Equal("John", users[1].FirstName)
+			},
+		},
+		{
+			name:     "Failure - database error on count",
+			page:     1,
+			pageSize: 10,
+			search:   "",
+			order:    "",
+			setup: func() {
+				s.mockDB.Mock.ExpectQuery(defaultCountQuery).WillReturnError(errors.New("db error"))
 			},
 			wantErr: errors.New("db error"),
-			verify: func(users []database.User) {
+			verify: func(users []database.User, total int64) {
 				s.Nil(users)
+				s.Equal(int64(0), total)
 			},
 		},
 	}
@@ -77,15 +150,15 @@ func (s *UserRepositoryTestSuite) TestGetUsers() {
 		s.Run(tc.name, func() {
 			tc.setup()
 
-			users, err := s.userRepo.GetUsers(s.ctx)
+			users, total, err := s.userRepo.GetUsers(s.ctx, tc.page, tc.pageSize, tc.search, tc.order)
 
 			if tc.wantErr != nil {
 				s.Require().Error(err)
 				s.EqualError(err, tc.wantErr.Error())
-				tc.verify(users)
+				tc.verify(users, total)
 			} else {
 				s.Require().NoError(err)
-				tc.verify(users)
+				tc.verify(users, total)
 			}
 		})
 	}
@@ -205,4 +278,13 @@ func (s *UserRepositoryTestSuite) TestUpdateUser() {
 
 func TestUserRepository(t *testing.T) {
 	suite.Run(t, new(UserRepositoryTestSuite))
+}
+
+func (s *UserRepositoryTestSuite) TestGetUsersCount() {
+	s.mockDB.Mock.ExpectQuery(`^SELECT count\(\*\) FROM "users"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(12))
+
+	count, err := s.userRepo.GetUsersCount(s.ctx)
+	s.NoError(err)
+	s.Equal(int64(12), count)
 }

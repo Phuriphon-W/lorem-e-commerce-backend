@@ -490,3 +490,12 @@ func (s *OrderRepositoryTestSuite) TestUpdateOrderSession() {
 func TestOrderRepository(t *testing.T) {
 	suite.Run(t, new(OrderRepositoryTestSuite))
 }
+
+func (s *OrderRepositoryTestSuite) TestGetOrdersCount() {
+	s.mockDB.Mock.ExpectQuery(`^SELECT count\(\*\) FROM "orders"`).
+		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(200))
+
+	count, err := s.orderRepo.GetOrdersCount(s.ctx)
+	s.NoError(err)
+	s.Equal(int64(200), count)
+}

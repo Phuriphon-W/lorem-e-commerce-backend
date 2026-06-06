@@ -13,6 +13,7 @@ type AuthRepository interface {
 		ID           uuid.UUID
 		Username     string
 		PasswordHash string
+		IsAdmin      bool
 	}, error)
 	GetUserByUsername(ctx context.Context, username string) (*struct {
 		ID       uuid.UUID

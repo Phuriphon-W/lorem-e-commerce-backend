@@ -186,3 +186,66 @@ func (p *productHandlerImpl) DeleteProductById(ctx context.Context, input *dto.D
 	}
 	return res, nil
 }
+
+func (p *productHandlerImpl) UpdateProduct(ctx context.Context, input *dto.UpdateProductInputDto) (*dto.UpdatedProductOutputDto, error) {
+	// First fetch the existing product to see if it exists
+	_, err := p.productRepository.GetProductByID(ctx, input.ID)
+	if err != nil {
+		return nil, huma.Error404NotFound("Product not found", err)
+	}
+
+	formData := input.RawBody.Data()
+
+	updateData := map[string]interface{}{
+		"name":        formData.Name,
+		"description": formData.Description,
+		"price":       formData.Price,
+		"available":   formData.Available,
+		"category_id": formData.CategoryId,
+	}
+
+	// If a new image file is provided, upload it and update the obj_key
+	if formData.ImageFile.Filename != "" {
+		putKey := fmt.Sprintf("product-images/%v-%v", time.Now().Unix(), formData.ImageFile.Filename)
+
+		objKey, err := p.fileRepository.UploadFile(
+			ctx,
+			putKey,
+			formData.ImageFile,
+			formData.ImageFile.Size,
+			formData.ImageFile.ContentType,
+		)
+		if err != nil {
+			return nil, huma.Error400BadRequest("Error Uploading Product Image to Object Storage", err)
+		}
+		updateData["obj_key"] = objKey
+	}
+
+	err = p.productRepository.UpdateProductByID(ctx, input.ID, updateData)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to update product", err)
+	}
+
+	res := &dto.UpdatedProductOutputDto{
+		Body: dto.UpdatedProductOutputDtoBody{
+			Message: "Product updated successfully",
+		},
+	}
+
+	return res, nil
+}
+
+func (p *productHandlerImpl) GetProductsCount(ctx context.Context, input *struct{}) (*dto.GetProductsCountOutputDto, error) {
+	count, err := p.productRepository.GetProductsCount(ctx)
+	if err != nil {
+		return nil, huma.Error500InternalServerError("Failed to retrieve products count", err)
+	}
+
+	return &dto.GetProductsCountOutputDto{
+		Body: struct {
+			Count int64 `json:"count" doc:"Total number of products"`
+		}{
+			Count: count,
+		},
+	}, nil
+}

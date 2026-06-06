@@ -57,6 +57,11 @@ func (m *MockOrderRepository) UpdateOrderSession(ctx context.Context, orderID uu
 	return args.Error(0)
 }
 
+func (m *MockOrderRepository) GetOrdersCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return int64(args.Int(0)), args.Error(1)
+}
+
 type MockProductRepository struct {
 	mock.Mock
 }
@@ -98,6 +103,11 @@ func (m *MockProductRepository) GetProductStock(ctx context.Context, productId u
 func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
 	args := m.Called(ctx, productID, updateData)
 	return args.Error(0)
+}
+
+func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
+	args := m.Called(ctx)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepo.StockDeduction) error {
@@ -348,6 +358,7 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			s.SetupTest() // Reset mock state
+			s.ctx = context.WithValue(s.ctx, "userID", tc.input.Body.UserID.String())
 			tc.setupMocks()
 
 			out, err := s.handler.CreateOrder(s.ctx, tc.input)
@@ -592,6 +603,7 @@ func (s *OrderHandlerTestSuite) TestGetOrderById() {
 	for _, tc := range testCases {
 		s.Run(tc.name, func() {
 			s.SetupTest()
+			s.ctx = context.WithValue(s.ctx, "userID", userID.String())
 			tc.setupMocks()
 
 			out, err := s.handler.GetOrderById(s.ctx, tc.input)
@@ -690,4 +702,21 @@ func (s *OrderHandlerTestSuite) TestUpdateOrderStatus() {
 
 func TestOrderHandlerTestSuite(t *testing.T) {
 	suite.Run(t, new(OrderHandlerTestSuite))
+}
+
+func (s *OrderHandlerTestSuite) TestGetOrdersCount_Success() {
+	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(85, nil).Once()
+
+	res, err := s.handler.GetOrdersCount(s.ctx, &struct{}{})
+	s.NoError(err)
+	s.NotNil(res)
+	s.Equal(int64(85), res.Body.Count)
+}
+
+func (s *OrderHandlerTestSuite) TestGetOrdersCount_Error() {
+	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(0, errors.New("db error")).Once()
+
+	res, err := s.handler.GetOrdersCount(s.ctx, &struct{}{})
+	s.Error(err)
+	s.Nil(res)
 }

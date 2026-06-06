@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"lorem-backend/internal/utils"
 	"mime/multipart"
 	"os"
 	"path/filepath"
@@ -163,6 +164,81 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 		fmt.Printf("The image is stored at %v\n", objKey)
 	}
 
-	fmt.Println("✅ Database seeded with 2 categories and 30 products!")
+	// 4. Define test user
+	hashed, _ := utils.HashPassword("password123")
+	isNotAdmin := false
+	telephone := "0812345678"
+	zipCode := "10110"
+	road := "Sukhumvit Rd"
+	district := "Watthana"
+	subDistrict := "Khlong Toei Nuea"
+	houseNumber := "123/45"
+	province := "Bangkok"
+
+	testUser := User{
+		Username:     "testuser",
+		FirstName:    "John",
+		LastName:     "Doe",
+		Email:        "testuser@example.com",
+		PasswordHash: hashed,
+		IsAdmin:      &isNotAdmin,
+		Telephone:    &telephone,
+		ZipCode:      &zipCode,
+		Road:         &road,
+		District:     &district,
+		SubDistrict:  &subDistrict,
+		HouseNumber:  &houseNumber,
+		Province:     &province,
+	}
+
+	if err := db.Where(User{Email: "testuser@example.com"}).FirstOrCreate(&testUser).Error; err != nil {
+		return fmt.Errorf("could not seed test user: %v", err)
+	}
+	testUser.Username = "testuser"
+	testUser.FirstName = "John"
+	testUser.LastName = "Doe"
+	testUser.PasswordHash = hashed
+	testUser.IsAdmin = &isNotAdmin
+	testUser.Telephone = &telephone
+	testUser.ZipCode = &zipCode
+	testUser.Road = &road
+	testUser.District = &district
+	testUser.SubDistrict = &subDistrict
+	testUser.HouseNumber = &houseNumber
+	testUser.Province = &province
+	if err := db.Save(&testUser).Error; err != nil {
+		return fmt.Errorf("could not update test user: %v", err)
+	}
+
+	// Ensure the test user has a cart
+	var testUserCart Cart
+	if err := db.Where(Cart{UserID: testUser.ID}).FirstOrCreate(&testUserCart).Error; err != nil {
+		return fmt.Errorf("could not seed test user cart: %v", err)
+	}
+
+	// 5. Define admin user
+	isAdmin := true
+	adminUser := User{
+		Username:     "adminUser",
+		FirstName:    "Admin",
+		LastName:     "User",
+		Email:        "admin@example.com",
+		PasswordHash: hashed,
+		IsAdmin:      &isAdmin,
+	}
+
+	if err := db.Where(User{Email: "admin@example.com"}).FirstOrCreate(&adminUser).Error; err != nil {
+		return fmt.Errorf("could not seed admin user: %v", err)
+	}
+	adminUser.Username = "adminUser"
+	adminUser.FirstName = "Admin"
+	adminUser.LastName = "User"
+	adminUser.PasswordHash = hashed
+	adminUser.IsAdmin = &isAdmin
+	if err := db.Save(&adminUser).Error; err != nil {
+		return fmt.Errorf("could not update admin user: %v", err)
+	}
+
+	fmt.Println("✅ Database seeded with 2 categories, 30 products, and 2 users!")
 	return nil
 }

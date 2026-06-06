@@ -69,3 +69,9 @@ type (
 		Body DeleteCategoryByIdOutputDtoBody
 	}
 )
+
+type GetCategoriesCountOutputDto struct {
+	Body struct {
+		Count int64 `json:"count" doc:"Total number of categories"`
+	}
+}
