@@ -19,9 +19,28 @@ func NewCategoryPostgresRepository(db database.Database) CategoryRepository {
 }
 
 func (c *categoryPostgresRepository) CreateCategory(ctx context.Context, category *database.Category) (uuid.UUID, error) {
+	var existing database.Category
+	err := c.db.GetDb().WithContext(ctx).Unscoped().Where("name = ?", category.Name).First(&existing).Error
+	if err == nil {
+		if existing.DeletedAt.Valid {
+			err = c.db.GetDb().WithContext(ctx).Unscoped().
+				Model(&database.Category{}).
+				Where("id = ?", existing.ID).
+				Updates(map[string]interface{}{
+					"deleted_at": nil,
+					"name":       category.Name,
+				}).Error
+			if err != nil {
+				return uuid.Nil, err
+			}
+			category.ID = existing.ID
+			return existing.ID, nil
+		}
+	}
+
 	result := gorm.WithResult()
 
-	err := gorm.G[database.Category](c.db.GetDb(), result).Create(ctx, category)
+	err = gorm.G[database.Category](c.db.GetDb(), result).Create(ctx, category)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -57,9 +76,19 @@ func (c *categoryPostgresRepository) UpdateCategoryByID(ctx context.Context, cat
 }
 
 func (c *categoryPostgresRepository) DeleteCategoryByID(ctx context.Context, catID uuid.UUID) error {
-	return c.db.GetDb().WithContext(ctx).
-		Where("id = ?", catID).
-		Delete(&database.Category{}).Error
+	return c.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Cascade soft delete to all products belonging to this category
+		if err := tx.Where("category_id = ?", catID).Delete(&database.Product{}).Error; err != nil {
+			return err
+		}
+
+		// Delete the category itself
+		if err := tx.Where("id = ?", catID).Delete(&database.Category{}).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
 }
 
 func (c *categoryPostgresRepository) GetCategoriesCount(ctx context.Context) (int64, error) {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"regexp"
 	"testing"
+	"time"
 
 	"lorem-backend/internal/database"
 
@@ -49,6 +50,10 @@ func (s *CategoryRepositoryTestSuite) TestCreateCategory() {
 		{
 			name: "Success - inserts category",
 			setup: func() {
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "categories" WHERE name = $1 ORDER BY "categories"."id" LIMIT $2`)).
+					WithArgs(category.Name, 1).
+					WillReturnError(gorm.ErrRecordNotFound)
+
 				s.mockDB.Mock.ExpectBegin()
 				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "categories"`)).
 					WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(catID))
@@ -57,8 +62,30 @@ func (s *CategoryRepositoryTestSuite) TestCreateCategory() {
 			wantErr: nil,
 		},
 		{
+			name: "Success - restores and updates soft-deleted category",
+			setup: func() {
+				deletedAt := time.Now()
+				rows := sqlmock.NewRows([]string{"id", "name", "deleted_at"}).
+					AddRow(catID, category.Name, deletedAt)
+
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "categories" WHERE name = $1 ORDER BY "categories"."id" LIMIT $2`)).
+					WithArgs(category.Name, 1).
+					WillReturnRows(rows)
+
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "categories" SET`)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: nil,
+		},
+		{
 			name: "Failure - insert error",
 			setup: func() {
+				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`SELECT * FROM "categories" WHERE name = $1 ORDER BY "categories"."id" LIMIT $2`)).
+					WithArgs(category.Name, 1).
+					WillReturnError(gorm.ErrRecordNotFound)
+
 				s.mockDB.Mock.ExpectBegin()
 				s.mockDB.Mock.ExpectQuery(regexp.QuoteMeta(`INSERT INTO "categories"`)).
 					WillReturnError(errors.New("db error"))
@@ -270,9 +297,11 @@ func (s *CategoryRepositoryTestSuite) TestDeleteCategoryByID() {
 		wantErr error
 	}{
 		{
-			name: "Success - soft deletes category",
+			name: "Success - soft deletes category and its products",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "products" SET "deleted_at"=`)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "categories" SET "deleted_at"=`)).
 					WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectCommit()
@@ -280,9 +309,21 @@ func (s *CategoryRepositoryTestSuite) TestDeleteCategoryByID() {
 			wantErr: nil,
 		},
 		{
-			name: "Failure - database delete error",
+			name: "Failure - database product delete error",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "products" SET "deleted_at"=`)).
+					WillReturnError(errors.New("delete error"))
+				s.mockDB.Mock.ExpectRollback()
+			},
+			wantErr: errors.New("delete error"),
+		},
+		{
+			name: "Failure - database category delete error",
+			setup: func() {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "products" SET "deleted_at"=`)).
+					WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectExec(regexp.QuoteMeta(`UPDATE "categories" SET "deleted_at"=`)).
 					WillReturnError(errors.New("delete error"))
 				s.mockDB.Mock.ExpectRollback()
