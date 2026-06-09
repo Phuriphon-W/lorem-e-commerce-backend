@@ -1,5 +1,6 @@
 services:
   backend:
+    image: phuriphon47/lorem-e-commerce-backend:latest
     build:
       context: .
       target: prod
