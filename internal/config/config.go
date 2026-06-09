@@ -32,6 +32,9 @@ type Config struct {
 	SmtpFrom            string        `mapstructure:"SMTP_FROM"`
 	RateLimitLimit      int           `mapstructure:"RATE_LIMIT_LIMIT"`
 	RateLimitPeriodSec  int           `mapstructure:"RATE_LIMIT_PERIOD_SEC"`
+	RedisHost           string        `mapstructure:"REDIS_HOST"`
+	RedisPort           string        `mapstructure:"REDIS_PORT"`
+	RedisPassword       string        `mapstructure:"REDIS_PASSWORD"`
 }
 
 var GlobalConfig *Config
@@ -54,6 +57,9 @@ func LoadConfig() {
 	viper.SetDefault("STRIPE_SESSION_EXPIRE", "30m")
 	viper.SetDefault("RATE_LIMIT_LIMIT", 5)
 	viper.SetDefault("RATE_LIMIT_PERIOD_SEC", 60)
+	viper.SetDefault("REDIS_HOST", "localhost")
+	viper.SetDefault("REDIS_PORT", "6379")
+	viper.SetDefault("REDIS_PASSWORD", "")
 
 	// Set empty defaults for required secrets so Viper unmarshals them from ENV
 	viper.SetDefault("JWT_SECRET", "")

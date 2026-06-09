@@ -18,7 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	objectStorage := fileRepo.NewS3Repository(s3Client)
+	objectStorage := fileRepo.NewS3Repository(s3Client, nil)
 	fileRepository := fileRepo.NewFileMetaPostgresRepository(db, objectStorage)
 
 	if err := database.SeedDatabase(context.Background(), db.GetDb(), fileRepository); err != nil {

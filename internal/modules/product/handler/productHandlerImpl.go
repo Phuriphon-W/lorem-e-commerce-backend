@@ -8,7 +8,6 @@ import (
 	file "lorem-backend/internal/modules/file/repository"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
-	"sync"
 	"time"
 
 	"github.com/danielgtaylor/huma/v2"
@@ -96,41 +95,30 @@ func (p *productHandlerImpl) GetProducts(ctx context.Context, input *dto.GetProd
 
 	results := make([]dto.ProductResponse, len(products))
 
-	// Use a WaitGroup to run S3 calls in parallel
-	var wg sync.WaitGroup
-
 	for i, prod := range products {
-		wg.Add(1)
+		// Generate URL (This will hit Redis cache in sub-millisecond)
+		imgUrl, err := p.fileRepository.GeneratePresignUrl(ctx, prod.ImageObjKey)
+		if err != nil {
+			fmt.Printf("Error generating URL for %s: %v\n", prod.ID, err)
+			imgUrl = ""
+		}
 
-		go func() {
-			defer wg.Done()
-
-			// Generate URL (Parallel)
-			imgUrl, err := p.fileRepository.GeneratePresignUrl(ctx, prod.ImageObjKey)
-			if err != nil {
-				fmt.Printf("Error generating URL for %s: %v\n", prod.ID, err)
-				imgUrl = ""
-			}
-
-			// Map to DTO
-			results[i] = dto.ProductResponse{
-				ID: prod.ID,
-				ProductDtoBase: dto.ProductDtoBase{
-					Name:        prod.Name,
-					Description: prod.Description,
-					Price:       prod.Price,
-					Available:   prod.Available,
-					ImageURL:    imgUrl,
-				},
-				Category: catDto.CategoryDto{
-					ID:   prod.CategoryID,
-					Name: prod.Category.Name,
-				},
-			}
-		}()
+		// Map to DTO
+		results[i] = dto.ProductResponse{
+			ID: prod.ID,
+			ProductDtoBase: dto.ProductDtoBase{
+				Name:        prod.Name,
+				Description: prod.Description,
+				Price:       prod.Price,
+				Available:   prod.Available,
+				ImageURL:    imgUrl,
+			},
+			Category: catDto.CategoryDto{
+				ID:   prod.CategoryID,
+				Name: prod.Category.Name,
+			},
+		}
 	}
-
-	wg.Wait() // Wait for all S3 calls to finish
 
 	return &dto.GetProductsOutputDto{
 		Body: dto.GetProductsOutputDtoBody{

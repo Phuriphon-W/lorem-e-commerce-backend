@@ -24,7 +24,16 @@ services:
       - "9090:8978"
     volumes:
       - dbeaver-data:/opt/dbeaver/data
+  redis:
+    image: redis:8-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-volume:/data
 
 volumes:
   lorem-volume:
   dbeaver-data:
+  redis-volume:
