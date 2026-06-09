@@ -52,7 +52,7 @@ func TestS3Repository(t *testing.T) {
 		UsePathStyle: true,
 	})
 
-	repo := NewS3Repository(s3Client)
+	repo := NewS3Repository(s3Client, nil)
 
 	t.Run("UploadFile - Success", func(t *testing.T) {
 		mockStatus = 200

@@ -1,5 +1,6 @@
 services:
   backend:
+    image: phuriphon47/lorem-e-commerce-backend:latest
     build:
       context: .
       target: prod
@@ -11,6 +12,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_started
     restart: unless-stopped
 
 include:

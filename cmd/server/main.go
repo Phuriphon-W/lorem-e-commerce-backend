@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"lorem-backend/internal/api"
+	"lorem-backend/internal/cache"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 
@@ -33,10 +34,20 @@ func main() {
 		panic(fmt.Sprintf("Failed to connect to S3: %v", err))
 	}
 
+	// Connect to Redis (graceful fallback to nil if it fails/offline)
+	var redisCache cache.Cache
+	redisCache, err = cache.NewRedisCache(cfg.RedisHost, cfg.RedisPort, cfg.RedisPassword)
+	if err != nil {
+		log.Printf("Warning: Failed to connect to Redis: %v. Continuing in uncached mode.\n", err)
+		redisCache = nil
+	} else {
+		log.Println("Connected to Redis successfully")
+	}
+
 	cli := humacli.New(func(hooks humacli.Hooks, options *Options) {
 
 		// Create a new router and register APIs (from internal/api)
-		router := api.NewRouter(db, s3Client)
+		router := api.NewRouter(db, s3Client, redisCache)
 
 		hooks.OnStart(func() {
 			port := cfg.Port

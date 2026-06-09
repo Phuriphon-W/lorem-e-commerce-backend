@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"lorem-backend/internal/cache"
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	authHandler "lorem-backend/internal/modules/auth/handler"
@@ -37,7 +38,7 @@ import (
 	"golang.org/x/time/rate"
 )
 
-func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
+func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *echo.Echo {
 	router := echo.New()
 	router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins:     []string{config.GlobalConfig.FrontendURL},
@@ -117,7 +118,7 @@ func NewRouter(db database.Database, s3 *s3.Client) *echo.Echo {
 
 	// Register routes
 	registerAuthRoute(authGroup, db)
-	registerRoutes(protectedGroup, publicApiGroup, api, db, s3, router)
+	registerRoutes(protectedGroup, publicApiGroup, api, db, s3, redisCache, router)
 
 	return router
 }
@@ -131,7 +132,7 @@ func createHumaConfig() huma.Config {
 	return humaConfig
 }
 
-func registerRoutes(protected huma.API, publicApi huma.API, publicRoot huma.API, db database.Database, s3 *s3.Client, e *echo.Echo) {
+func registerRoutes(protected huma.API, publicApi huma.API, publicRoot huma.API, db database.Database, s3 *s3.Client, redisCache cache.Cache, e *echo.Echo) {
 	// Init ws service
 	wsSvc := wsService.NewWebsocketService()
 
@@ -139,7 +140,7 @@ func registerRoutes(protected huma.API, publicApi huma.API, publicRoot huma.API,
 	e.GET("/ws", wsSvc.WebsocketHandler)
 
 	// Init object storage repository
-	s3Repository := fileRepo.NewS3Repository(s3)
+	s3Repository := fileRepo.NewS3Repository(s3, redisCache)
 
 	// Init file metadata repository
 	fileRepository := fileRepo.NewFileMetaPostgresRepository(db, s3Repository)

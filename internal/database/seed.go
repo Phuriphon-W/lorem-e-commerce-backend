@@ -65,7 +65,6 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 		{"Accessory", "Cashmere Scarf", "Ultra-soft winter neckwear", 60.00, 45, "accessories/scarf.jpg"},
 		{"Accessory", "Bifold Leather Wallet", "RFID blocking with coin pocket", 45.00, 80, "accessories/wallet.jpg"},
 		{"Accessory", "Everyday Backpack", "Water-resistant with laptop sleeve", 75.00, 55, "accessories/bagpack.jpg"},
-		{"Accessory", "Canvas Messenger Bag", "Vintage style crossbody bag", 65.50, 35, "accessories/bagpack.jpg"},
 		{"Accessory", "Leather Gloves", "Touchscreen compatible, fleece-lined", 48.00, 60, "accessories/gloves.jpg"},
 		{"Accessory", "Silk Necktie", "Textured weave, standard width", 28.00, 90, "accessories/necktie.jpg"},
 		{"Accessory", "Gold Earrings", "14k Gold plated minimalist hoops", 35.00, 75, "accessories/gold-earrings.jpg"},
