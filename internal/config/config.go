@@ -69,8 +69,11 @@ func LoadConfig() {
 	viper.SetDefault("AWS_SECRET_KEY", "")
 	viper.SetDefault("STRIPE_SECRET_KEY", "")
 	viper.SetDefault("STRIPE_WEBHOOK_SECRET", "")
+	viper.SetDefault("SMTP_HOST", "")
+	viper.SetDefault("SMTP_PORT", 0)
 	viper.SetDefault("SMTP_USER", "")
 	viper.SetDefault("SMTP_PASSWORD", "")
+	viper.SetDefault("SMTP_FROM", "")
 
 	// Read the file
 	if err := viper.ReadInConfig(); err != nil {
