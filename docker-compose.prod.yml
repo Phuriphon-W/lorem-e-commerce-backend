@@ -1,9 +1,6 @@
 services:
   backend:
     image: phuriphon47/lorem-e-commerce-backend:latest
-    build:
-      context: .
-      target: prod
     container_name: lorem-backend-prod
     ports:
       - "5000:5000"
