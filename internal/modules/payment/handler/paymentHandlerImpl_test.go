@@ -19,7 +19,6 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
-	"github.com/gorilla/websocket"
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -185,14 +184,6 @@ type MockWebsocketService struct {
 	mock.Mock
 }
 
-func (m *MockWebsocketService) AddClient(userID uuid.UUID, conn *websocket.Conn) {
-	m.Called(userID, conn)
-}
-
-func (m *MockWebsocketService) RemoveClient(userID uuid.UUID, conn *websocket.Conn) {
-	m.Called(userID, conn)
-}
-
 func (m *MockWebsocketService) SendToUser(userID uuid.UUID, message wsService.WSPayload) {
 	m.Called(userID, message)
 }
@@ -200,6 +191,10 @@ func (m *MockWebsocketService) SendToUser(userID uuid.UUID, message wsService.WS
 func (m *MockWebsocketService) WebsocketHandler(c echo.Context) error {
 	args := m.Called(c)
 	return args.Error(0)
+}
+
+func (m *MockWebsocketService) Run(ctx context.Context) {
+	m.Called(ctx)
 }
 
 // ────────────────────────────────────────────────────────────
