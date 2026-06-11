@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"fmt"
 	"lorem-backend/internal/cache"
 	"lorem-backend/internal/config"
@@ -135,6 +136,7 @@ func createHumaConfig() huma.Config {
 func registerRoutes(protected huma.API, publicApi huma.API, publicRoot huma.API, db database.Database, s3 *s3.Client, redisCache cache.Cache, e *echo.Echo) {
 	// Init ws service
 	wsSvc := wsService.NewWebsocketService()
+	go wsSvc.Run(context.Background())
 
 	// Register ws route
 	e.GET("/ws", wsSvc.WebsocketHandler)
