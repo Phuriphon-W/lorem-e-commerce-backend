@@ -76,24 +76,30 @@ func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *ech
 	})
 	router.Use(rateLimiter)
 	router.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
-		LogStatus:  true,
-		LogMethod:  true,
-		LogURI:     true,
-		LogError:   true,
-		LogLatency: true,
+		LogStatus:        true,
+		LogMethod:        true,
+		LogURI:           true,
+		LogError:         true,
+		LogLatency:       true,
+		LogContentLength: true,
 		LogValuesFunc: func(c echo.Context, v middleware.RequestLoggerValues) error {
 			// Generate a readable timestamp: YYYY-MM-DD HH-MM-SS
 			timestamp := time.Now().Format("2006-01-02 15:04:05")
 
+			sizeInfo := ""
+			if v.ContentLength != "" && v.ContentLength != "0" {
+				sizeInfo = fmt.Sprintf(" | SIZE: %s", v.ContentLength)
+			}
+
 			// Format: [TIMESTAMP] METHOD URI - STATUS
 			if v.Error != nil {
 				// Log with Error detail if something went wrong
-				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms | ERR: %v\n",
-					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds(), v.Error)
+				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms%s | ERR: %v\n",
+					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds(), sizeInfo, v.Error)
 			} else {
 				// Standard Request Log
-				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms\n",
-					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds())
+				fmt.Printf("[%s] %s %s | STATUS: %d | LATENCY: %v ms%s\n",
+					timestamp, v.Method, v.URI, v.Status, v.Latency.Milliseconds(), sizeInfo)
 			}
 
 			return nil
@@ -158,7 +164,7 @@ func registerRoutes(protected huma.API, publicApi huma.API, publicRoot huma.API,
 	registerProductRoute(protected, publicApi, fileRepository, productRepository)
 	registerFileRoute(protected, publicRoot, fileRepository)
 	registerCartRoute(protected, db, fileRepository, productRepository)
-	registerOrderRoute(protected, orderRepository, productRepository, fileRepository)
+	registerOrderRoute(protected, db, orderRepository, productRepository, fileRepository)
 	registerPaymentRoute(protected, e, db, orderRepository, productRepository, wsSvc)
 }
 
@@ -574,8 +580,8 @@ func registerCartRoute(api huma.API, db database.Database, fileRepository fileRe
 	}, handler.DeleteCartItems)
 }
 
-func registerOrderRoute(api huma.API, orderRepo orderRepo.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) {
-	orderHandler := orderHandler.NewOrderHandlerImpl(orderRepo, prodRepo, fileRepo)
+func registerOrderRoute(api huma.API, db database.Database, orderRepo orderRepo.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) {
+	orderHandler := orderHandler.NewOrderHandlerImpl(db, orderRepo, prodRepo, fileRepo)
 
 	// POST /order
 	huma.Register(api, huma.Operation{

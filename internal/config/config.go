@@ -8,33 +8,37 @@ import (
 )
 
 type Config struct {
-	Port                int           `mapstructure:"PORT"`
-	DBHost              string        `mapstructure:"DB_HOST"`
-	DBUser              string        `mapstructure:"DB_USER"`
-	DBPassword          string        `mapstructure:"DB_PASSWORD"`
-	DBName              string        `mapstructure:"DB_NAME"`
-	DBPort              int           `mapstructure:"DB_PORT"`
-	JWTSecret           string        `mapstructure:"JWT_SECRET"`
-	JWTExpire           string        `mapstructure:"JWT_EXPIRE"`
-	FrontendURL         string        `mapstructure:"FRONTEND_URL"`
-	S3Endpoint          string        `mapstructure:"S3_URL"`
-	BucketName          string        `mapstructure:"BUCKET_NAME"`
-	AwsAccessKey        string        `mapstructure:"AWS_ACCESS_KEY"`
-	AwsSecretKey        string        `mapstructure:"AWS_SECRET_KEY"`
-	AwsRegion           string        `mapstructure:"AWS_REGION"`
-	StripeSecretKey     string        `mapstructure:"STRIPE_SECRET_KEY"`
-	StripeWebhookSecret string        `mapstructure:"STRIPE_WEBHOOK_SECRET"`
-	StripeSessionExpire time.Duration `mapstructure:"STRIPE_SESSION_EXPIRE"`
-	SmtpHost            string        `mapstructure:"SMTP_HOST"`
-	SmtpPort            int           `mapstructure:"SMTP_PORT"`
-	SmtpUser            string        `mapstructure:"SMTP_USER"`
-	SmtpPassword        string        `mapstructure:"SMTP_PASSWORD"`
-	SmtpFrom            string        `mapstructure:"SMTP_FROM"`
-	RateLimitLimit      int           `mapstructure:"RATE_LIMIT_LIMIT"`
-	RateLimitPeriodSec  int           `mapstructure:"RATE_LIMIT_PERIOD_SEC"`
-	RedisHost           string        `mapstructure:"REDIS_HOST"`
-	RedisPort           string        `mapstructure:"REDIS_PORT"`
-	RedisPassword       string        `mapstructure:"REDIS_PASSWORD"`
+	Port                 int           `mapstructure:"PORT"`
+	DBHost               string        `mapstructure:"DB_HOST"`
+	DBUser               string        `mapstructure:"DB_USER"`
+	DBPassword           string        `mapstructure:"DB_PASSWORD"`
+	DBName               string        `mapstructure:"DB_NAME"`
+	DBPort               int           `mapstructure:"DB_PORT"`
+	JWTSecret            string        `mapstructure:"JWT_SECRET"`
+	JWTExpire            string        `mapstructure:"JWT_EXPIRE"`
+	FrontendURL          string        `mapstructure:"FRONTEND_URL"`
+	S3Endpoint           string        `mapstructure:"S3_URL"`
+	BucketName           string        `mapstructure:"BUCKET_NAME"`
+	AwsAccessKey         string        `mapstructure:"AWS_ACCESS_KEY"`
+	AwsSecretKey         string        `mapstructure:"AWS_SECRET_KEY"`
+	AwsRegion            string        `mapstructure:"AWS_REGION"`
+	StripeSecretKey      string        `mapstructure:"STRIPE_SECRET_KEY"`
+	StripeWebhookSecret  string        `mapstructure:"STRIPE_WEBHOOK_SECRET"`
+	StripeSessionExpire  time.Duration `mapstructure:"STRIPE_SESSION_EXPIRE"`
+	SmtpHost             string        `mapstructure:"SMTP_HOST"`
+	SmtpPort             int           `mapstructure:"SMTP_PORT"`
+	SmtpUser             string        `mapstructure:"SMTP_USER"`
+	SmtpPassword         string        `mapstructure:"SMTP_PASSWORD"`
+	SmtpFrom             string        `mapstructure:"SMTP_FROM"`
+	RateLimitLimit       int           `mapstructure:"RATE_LIMIT_LIMIT"`
+	RateLimitPeriodSec   int           `mapstructure:"RATE_LIMIT_PERIOD_SEC"`
+	RedisHost            string        `mapstructure:"REDIS_HOST"`
+	RedisPort            string        `mapstructure:"REDIS_PORT"`
+	RedisPassword        string        `mapstructure:"REDIS_PASSWORD"`
+	DBMaxOpenConns       int           `mapstructure:"DB_MAX_OPEN_CONNS"`
+	DBMaxIdleConns       int           `mapstructure:"DB_MAX_IDLE_CONNS"`
+	DBConnMaxLifetimeMin int           `mapstructure:"DB_CONN_MAX_LIFETIME_MIN"`
+	DBConnMaxIdleTimeMin int           `mapstructure:"DB_CONN_MAX_IDLE_TIME_MIN"`
 }
 
 var GlobalConfig *Config
@@ -60,6 +64,10 @@ func LoadConfig() {
 	viper.SetDefault("REDIS_HOST", "localhost")
 	viper.SetDefault("REDIS_PORT", "6379")
 	viper.SetDefault("REDIS_PASSWORD", "")
+	viper.SetDefault("DB_MAX_OPEN_CONNS", 50)
+	viper.SetDefault("DB_MAX_IDLE_CONNS", 25)
+	viper.SetDefault("DB_CONN_MAX_LIFETIME_MIN", 30)
+	viper.SetDefault("DB_CONN_MAX_IDLE_TIME_MIN", 5)
 
 	// Set empty defaults for required secrets so Viper unmarshals them from ENV
 	viper.SetDefault("JWT_SECRET", "")

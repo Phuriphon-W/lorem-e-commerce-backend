@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"lorem-backend/internal/database"
+	"sort"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 type productPostgresRepository struct {
@@ -91,10 +91,10 @@ func (r *productPostgresRepository) GetProducts(
 
 	// Apply Ordering
 	if order != "" {
-		query.Order(order)
+		query = query.Order(order)
 	} else {
 		// Default order in ascending created date
-		query.Order("products.created_at DESC")
+		query = query.Order("products.created_at DESC")
 	}
 
 	// Calculate Page Offset
@@ -130,7 +130,7 @@ func (r *productPostgresRepository) GetProductByID(ctx context.Context, productI
 func (r *productPostgresRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
 	var products []database.Product
 
-	err := r.db.GetDb().WithContext(ctx).
+	err := database.GetDB(ctx, r.db.GetDb()).
 		Where("id IN ?", productIDs).
 		Find(&products).Error
 
@@ -163,25 +163,26 @@ func (r *productPostgresRepository) UpdateProductByID(ctx context.Context, produ
 }
 
 func (r *productPostgresRepository) DeductProductStocks(ctx context.Context, deductions []StockDeduction) error {
-	return r.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// Sort deductions by ProductID ascending to prevent deadlocks under concurrent load
+	sort.Slice(deductions, func(i, j int) bool {
+		return deductions[i].ProductID.String() < deductions[j].ProductID.String()
+	})
+
+	db := database.GetDB(ctx, r.db.GetDb())
+
+	return db.Transaction(func(tx *gorm.DB) error {
 		for _, item := range deductions {
-			var product database.Product
-			// Lock the row and check stock
-			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ?", item.ProductID).First(&product).Error; err != nil {
-				return err
+			// Perform the safe mathematical deduction and check stock in one atomic query
+			result := tx.Model(&database.Product{}).
+				Where("id = ? AND available >= ?", item.ProductID, item.Quantity).
+				Update("available", gorm.Expr("available - ?", item.Quantity))
+
+			if result.Error != nil {
+				return result.Error
 			}
 
-			if product.Available < item.Quantity {
-				return fmt.Errorf("insufficient stock for product %s: requested %d, available %d", item.ProductID, item.Quantity, product.Available)
-			}
-
-			// Perform the safe mathematical deduction
-			err := tx.Model(&database.Product{}).
-				Where("id = ?", item.ProductID).
-				Update("available", gorm.Expr("available - ?", item.Quantity)).Error
-
-			if err != nil {
-				return err
+			if result.RowsAffected == 0 {
+				return fmt.Errorf("insufficient stock for product %s: requested %d", item.ProductID, item.Quantity)
 			}
 		}
 
@@ -190,7 +191,14 @@ func (r *productPostgresRepository) DeductProductStocks(ctx context.Context, ded
 }
 
 func (r *productPostgresRepository) AddProductStocks(ctx context.Context, additions []StockDeduction) error {
-	return r.db.GetDb().WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// Sort additions by ProductID ascending to prevent deadlocks under concurrent load
+	sort.Slice(additions, func(i, j int) bool {
+		return additions[i].ProductID.String() < additions[j].ProductID.String()
+	})
+
+	db := database.GetDB(ctx, r.db.GetDb())
+
+	return db.Transaction(func(tx *gorm.DB) error {
 		for _, item := range additions {
 			var count int64
 			err := tx.Unscoped().Model(&database.Product{}).Where("id = ?", item.ProductID).Count(&count).Error

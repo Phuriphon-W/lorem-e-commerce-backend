@@ -434,12 +434,9 @@ func (s *ProductRepositoryTestSuite) TestDeductProductStocks() {
 			name: "Success - locks row and deducts stock",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
-				// Expect SELECT ... FOR UPDATE
-				rows := sqlmock.NewRows([]string{"id", "available"}).AddRow(prodID, uint(10))
-				s.mockDB.Mock.ExpectQuery(`SELECT \* FROM "products" WHERE id = \$1.*FOR UPDATE`).
-					WithArgs(prodID, 1).WillReturnRows(rows)
-				// Expect UPDATE available
-				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnResult(sqlmock.NewResult(1, 1))
+				s.mockDB.Mock.ExpectExec(`UPDATE "products" SET "available"=available - \$1.*`).
+					WithArgs(5, sqlmock.AnyArg(), prodID, 5).
+					WillReturnResult(sqlmock.NewResult(1, 1))
 				s.mockDB.Mock.ExpectCommit()
 			},
 			wantErr: nil,
@@ -448,9 +445,9 @@ func (s *ProductRepositoryTestSuite) TestDeductProductStocks() {
 			name: "Failure - insufficient stock",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
-				rows := sqlmock.NewRows([]string{"id", "available"}).AddRow(prodID, uint(3))
-				s.mockDB.Mock.ExpectQuery(`SELECT \* FROM "products" WHERE id = \$1.*FOR UPDATE`).
-					WithArgs(prodID, 1).WillReturnRows(rows)
+				s.mockDB.Mock.ExpectExec(`UPDATE "products" SET "available"=available - \$1.*`).
+					WithArgs(5, sqlmock.AnyArg(), prodID, 5).
+					WillReturnResult(sqlmock.NewResult(0, 0))
 				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr: errors.New("insufficient stock for product"),
@@ -459,20 +456,19 @@ func (s *ProductRepositoryTestSuite) TestDeductProductStocks() {
 			name: "Failure - product not found in transaction",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
-				s.mockDB.Mock.ExpectQuery(`SELECT \* FROM "products" WHERE id = \$1.*FOR UPDATE`).
-					WithArgs(prodID, 1).WillReturnError(gorm.ErrRecordNotFound)
+				s.mockDB.Mock.ExpectExec(`UPDATE "products" SET "available"=available - \$1.*`).
+					WithArgs(5, sqlmock.AnyArg(), prodID, 5).
+					WillReturnResult(sqlmock.NewResult(0, 0))
 				s.mockDB.Mock.ExpectRollback()
 			},
-			wantErr: gorm.ErrRecordNotFound,
+			wantErr: errors.New("insufficient stock for product"),
 		},
 		{
 			name: "Failure - DB error on update query",
 			setup: func() {
 				s.mockDB.Mock.ExpectBegin()
-				rows := sqlmock.NewRows([]string{"id", "available"}).AddRow(prodID, uint(10))
-				s.mockDB.Mock.ExpectQuery(`SELECT \* FROM "products" WHERE id = \$1.*FOR UPDATE`).
-					WithArgs(prodID, 1).WillReturnRows(rows)
-				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).WillReturnError(errors.New("update deduction failed"))
+				s.mockDB.Mock.ExpectExec(`UPDATE "products"`).
+					WillReturnError(errors.New("update deduction failed"))
 				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr: errors.New("update deduction failed"),
