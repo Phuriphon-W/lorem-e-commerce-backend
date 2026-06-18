@@ -9,7 +9,7 @@ import (
 
 type Base struct {
 	ID        uuid.UUID `gorm:"primaryKey;type:uuid;default:gen_random_uuid()"`
-	CreatedAt time.Time
+	CreatedAt time.Time `gorm:"index"`
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
@@ -38,13 +38,13 @@ type User struct {
 // Cart
 type Cart struct {
 	Base
-	UserID    uuid.UUID  `gorm:"not null"`
+	UserID    uuid.UUID  `gorm:"not null;index"`
 	CartItems []CartItem `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 type CartItem struct {
 	Base
-	CartID    uuid.UUID
+	CartID    uuid.UUID `gorm:"index"`
 	ProductID uuid.UUID
 	Product   Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Quantity  uint    `gorm:"not null"`
@@ -55,10 +55,10 @@ type Product struct {
 	Base
 	Name        string `gorm:"type:varchar(255);not null;unique"`
 	Description string
-	Price       float32   `gorm:"type:decimal(10,2);not null;check:price > 0"`
+	Price       float32   `gorm:"type:decimal(10,2);not null;check:price > 0;index"`
 	Available   uint      `gorm:"default:0;not null;check:available >= 0"`
 	ImageObjKey string    `gorm:"column:obj_key;not null"`
-	CategoryID  uuid.UUID `gorm:"not null"`
+	CategoryID  uuid.UUID `gorm:"not null;index"`
 	Category    Category
 }
 
@@ -82,10 +82,10 @@ const (
 
 type Order struct {
 	Base
-	UserID                 uuid.UUID   `gorm:"not null"`
+	UserID                 uuid.UUID   `gorm:"not null;index"`
 	User                   User        `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	TotalPrice             float32     `gorm:"type:decimal(10,2);not null;check:total_price >= 0"`
-	OrderStatus            OrderStatus `gorm:"type:varchar(20);not null;default:'pending'"`
+	OrderStatus            OrderStatus `gorm:"type:varchar(20);not null;default:'pending';index"`
 	StripeSessionID        *string     `gorm:"type:varchar(255)"`
 	StripeSessionURL       *string     `gorm:"type:text"`
 	StripeSessionExpiresAt *time.Time
@@ -94,7 +94,7 @@ type Order struct {
 
 type OrderItem struct {
 	Base
-	OrderID         uuid.UUID `gorm:"primaryKey;not null"`
+	OrderID         uuid.UUID `gorm:"primaryKey;not null;index"`
 	Order           Order     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	ProductID       uuid.UUID
 	Product         Product `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`

@@ -14,6 +14,7 @@ import (
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -168,6 +169,7 @@ func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey stri
 
 type OrderHandlerTestSuite struct {
 	suite.Suite
+	mockDB          *database.MockDatabase
 	mockOrderRepo   *MockOrderRepository
 	mockProductRepo *MockProductRepository
 	mockFileRepo    *MockFileRepository
@@ -176,10 +178,11 @@ type OrderHandlerTestSuite struct {
 }
 
 func (s *OrderHandlerTestSuite) SetupTest() {
+	s.mockDB = database.NewMockDatabase(s.T())
 	s.mockOrderRepo = new(MockOrderRepository)
 	s.mockProductRepo = new(MockProductRepository)
 	s.mockFileRepo = new(MockFileRepository)
-	s.handler = NewOrderHandlerImpl(s.mockOrderRepo, s.mockProductRepo, s.mockFileRepo)
+	s.handler = NewOrderHandlerImpl(s.mockDB, s.mockOrderRepo, s.mockProductRepo, s.mockFileRepo)
 	s.ctx = context.Background()
 }
 
@@ -232,17 +235,19 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 				},
 			},
 			setupMocks: func() {
-				s.mockProductRepo.On("GetProductsByIDs", s.ctx, mock.MatchedBy(func(ids []uuid.UUID) bool {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 					return len(ids) == 2 && ((ids[0] == prodID1 && ids[1] == prodID2) || (ids[0] == prodID2 && ids[1] == prodID1))
 				})).Return(products, nil).Once()
 
-				s.mockProductRepo.On("DeductProductStocks", s.ctx, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
+				s.mockProductRepo.On("DeductProductStocks", mock.Anything, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
 					return len(d) == 2
 				})).Return(nil).Once()
 
-				s.mockOrderRepo.On("CreateOrder", s.ctx, mock.MatchedBy(func(o *database.Order) bool {
+				s.mockOrderRepo.On("CreateOrder", mock.Anything, mock.MatchedBy(func(o *database.Order) bool {
 					return o.UserID == userID && o.TotalPrice == 41.00 && len(o.OrderItems) == 2
 				})).Return(orderID, nil).Once()
+				s.mockDB.Mock.ExpectCommit()
 			},
 			wantErr: false,
 			verify: func(out *dto.CreatedOrderOutputDto) {
@@ -261,8 +266,10 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 				},
 			},
 			setupMocks: func() {
-				s.mockProductRepo.On("GetProductsByIDs", s.ctx, []uuid.UUID{prodID1}).
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, []uuid.UUID{prodID1}).
 					Return(nil, errors.New("db error")).Once()
+				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr:   true,
 			errStatus: 500,
@@ -279,10 +286,12 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 				},
 			},
 			setupMocks: func() {
+				s.mockDB.Mock.ExpectBegin()
 				// Only return product 1, simulating product 2 was not found
-				s.mockProductRepo.On("GetProductsByIDs", s.ctx, mock.MatchedBy(func(ids []uuid.UUID) bool {
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 					return len(ids) == 2
 				})).Return([]database.Product{products[0]}, nil).Once()
+				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr:   true,
 			errStatus: 404,
@@ -299,13 +308,15 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 				},
 			},
 			setupMocks: func() {
-				s.mockProductRepo.On("GetProductsByIDs", s.ctx, mock.MatchedBy(func(ids []uuid.UUID) bool {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 					return len(ids) == 2
 				})).Return(products, nil).Once()
 
-				s.mockProductRepo.On("DeductProductStocks", s.ctx, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
+				s.mockProductRepo.On("DeductProductStocks", mock.Anything, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
 					return len(d) == 2
 				})).Return(errors.New("insufficient stock")).Once()
+				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr:   true,
 			errStatus: 400,
@@ -322,21 +333,18 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 				},
 			},
 			setupMocks: func() {
-				s.mockProductRepo.On("GetProductsByIDs", s.ctx, mock.MatchedBy(func(ids []uuid.UUID) bool {
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, mock.MatchedBy(func(ids []uuid.UUID) bool {
 					return len(ids) == 2
 				})).Return(products, nil).Once()
 
-				s.mockProductRepo.On("DeductProductStocks", s.ctx, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
+				s.mockProductRepo.On("DeductProductStocks", mock.Anything, mock.MatchedBy(func(d []productRepo.StockDeduction) bool {
 					return len(d) == 2
 				})).Return(nil).Once()
 
-				s.mockOrderRepo.On("CreateOrder", s.ctx, mock.Anything).
+				s.mockOrderRepo.On("CreateOrder", mock.Anything, mock.Anything).
 					Return(uuid.Nil, errors.New("db insert fail")).Once()
-
-				// Stock should be rolled back/reverted
-				s.mockProductRepo.On("AddProductStocks", s.ctx, mock.MatchedBy(func(add []productRepo.StockDeduction) bool {
-					return len(add) == 2
-				})).Return(nil).Once()
+				s.mockDB.Mock.ExpectRollback()
 			},
 			wantErr:   true,
 			errStatus: 500,
@@ -352,6 +360,42 @@ func (s *OrderHandlerTestSuite) TestCreateOrder() {
 			setupMocks: func() {},
 			wantErr:    true,
 			errStatus:  400,
+		},
+		{
+			name: "Success - retries on deadlock and eventually succeeds",
+			input: &dto.CreateOrderInputDto{
+				Body: dto.CreateOrderInputDtoBody{
+					UserID: userID,
+					Items: []dto.OrderItemRequest{
+						{ProductID: prodID1, Quantity: 2},
+					},
+				},
+			},
+			setupMocks: func() {
+				// Attempt 1: GetProductsByIDs succeeds
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, []uuid.UUID{prodID1}).Return([]database.Product{products[0]}, nil).Once()
+				// Attempt 1: DeductProductStocks succeeds
+				s.mockProductRepo.On("DeductProductStocks", mock.Anything, mock.Anything).Return(nil).Once()
+				// Attempt 1: CreateOrder fails with deadlock
+				deadlockErr := &pgconn.PgError{Code: "40P01", Message: "deadlock detected"}
+				s.mockOrderRepo.On("CreateOrder", mock.Anything, mock.Anything).Return(uuid.Nil, deadlockErr).Once()
+				s.mockDB.Mock.ExpectRollback()
+
+				// Attempt 2: GetProductsByIDs succeeds
+				s.mockDB.Mock.ExpectBegin()
+				s.mockProductRepo.On("GetProductsByIDs", mock.Anything, []uuid.UUID{prodID1}).Return([]database.Product{products[0]}, nil).Once()
+				// Attempt 2: DeductProductStocks succeeds
+				s.mockProductRepo.On("DeductProductStocks", mock.Anything, mock.Anything).Return(nil).Once()
+				// Attempt 2: CreateOrder succeeds
+				s.mockOrderRepo.On("CreateOrder", mock.Anything, mock.Anything).Return(orderID, nil).Once()
+				s.mockDB.Mock.ExpectCommit()
+			},
+			wantErr: false,
+			verify: func(out *dto.CreatedOrderOutputDto) {
+				s.NotNil(out)
+				s.Equal(orderID, out.Body.ID)
+			},
 		},
 	}
 

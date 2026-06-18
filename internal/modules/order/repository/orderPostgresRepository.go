@@ -28,7 +28,7 @@ func (r *orderPostgresRepository) CreateOrder(ctx context.Context, order *databa
 
 	result := gorm.WithResult()
 
-	err := gorm.G[database.Order](r.db.GetDb(), result).Create(ctx, order)
+	err := gorm.G[database.Order](database.GetDB(ctx, r.db.GetDb()), result).Create(ctx, order)
 	if err != nil {
 		return uuid.Nil, err
 	}

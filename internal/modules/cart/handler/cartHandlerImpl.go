@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/cart/dto"
@@ -55,46 +54,29 @@ func (h *cartHandlerImpl) GetCartByUserId(ctx context.Context, input *dto.GetCar
 
 	cartItems := make([]dto.CartItemDto, len(activeItems))
 
-	var wg sync.WaitGroup
+	for i, cItem := range activeItems {
+		// generate product image url
+		itemImageUrl, err := h.fileRepo.GeneratePresignUrl(ctx, cItem.Product.ImageObjKey)
+		if err != nil {
+			fmt.Printf("Error generating URL for %s: %v\n", cItem.Product.ID, err)
+			itemImageUrl = ""
+		}
 
-	for i, item := range activeItems {
-		wg.Add(1)
-
-		go func(idx int, cItem database.CartItem) {
-			defer wg.Done()
-
-			// generate product image url
-			itemImageUrl, err := h.fileRepo.GeneratePresignUrl(ctx, cItem.Product.ImageObjKey)
-			if err != nil {
-				fmt.Printf("Error generating URL for %s: %v\n", cItem.Product.ID, err)
-				itemImageUrl = ""
-			}
-
-			// get available in stock
-			available, err := h.productRepo.GetProductStock(ctx, cItem.ProductID)
-			if err != nil {
-				fmt.Printf("Error getting available amount for product with id: %v", cItem.ProductID)
-				available = 0
-			}
-
-			// Map to DTO
-			cartItems[idx] = dto.CartItemDto{
-				ProductID:   cItem.Product.ID,
-				Name:        cItem.Product.Name,
-				Description: cItem.Product.Description,
-				Price:       cItem.Product.Price,
-				ImageURL:    itemImageUrl,
-				Quantity:    cItem.Quantity,
-				Available:   available,
-				Category: catDto.CategoryDto{
-					ID:   cItem.Product.Category.ID,
-					Name: cItem.Product.Category.Name,
-				},
-			}
-		}(i, item)
+		// Map to DTO
+		cartItems[i] = dto.CartItemDto{
+			ProductID:   cItem.Product.ID,
+			Name:        cItem.Product.Name,
+			Description: cItem.Product.Description,
+			Price:       cItem.Product.Price,
+			ImageURL:    itemImageUrl,
+			Quantity:    cItem.Quantity,
+			Available:   cItem.Product.Available,
+			Category: catDto.CategoryDto{
+				ID:   cItem.Product.Category.ID,
+				Name: cItem.Product.Category.Name,
+			},
+		}
 	}
-
-	wg.Wait()
 
 	return &dto.GetCartByUserIdOutputDto{
 		Body: dto.GetCartByUserIdOutputDtoBody{

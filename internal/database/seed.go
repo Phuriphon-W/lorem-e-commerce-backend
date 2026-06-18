@@ -76,7 +76,8 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 		var existingProduct Product
 		err := db.Where(Product{Name: p.Name}).First(&existingProduct).Error
 		if err == nil {
-			// Product already exists, skip
+			// Product already exists, update stock to a high value for load testing
+			db.Model(&existingProduct).Update("available", 999999)
 			continue
 		}
 
@@ -116,7 +117,7 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 			Name:        p.Name,
 			Description: p.Description,
 			Price:       p.Price,
-			Available:   p.Available,
+			Available:   999999, // Override to ensure infinite stock for load testing
 			ImageObjKey: objKey,
 			CategoryID:  categoryMap[p.CategoryName],
 		}

@@ -223,10 +223,10 @@ func (s *CartHandlerTestSuite) TestGetCartByUserId() {
 			name:  "Success - returns cart with items, presigned URL and stock",
 			input: &dto.GetCartByUserIdInputDto{ID: userID},
 			setupMock: func() {
+				mockCart.CartItems[0].Product.Available = 10
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
 				s.mockFileRepo.On("GeneratePresignUrl", mock.Anything, "images/sweater.png").
 					Return("https://presigned.url/images/sweater.png", nil).Once()
-				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(10), nil).Once()
 			},
 			expectedError: false,
 			verify: func(res *dto.GetCartByUserIdOutputDto) {
@@ -246,10 +246,10 @@ func (s *CartHandlerTestSuite) TestGetCartByUserId() {
 			name:  "Success - presign URL error degrades gracefully (empty image URL)",
 			input: &dto.GetCartByUserIdInputDto{ID: userID},
 			setupMock: func() {
+				mockCart.CartItems[0].Product.Available = 5
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
 				s.mockFileRepo.On("GeneratePresignUrl", mock.Anything, "images/sweater.png").
 					Return("", errors.New("s3 presign failed")).Once()
-				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(5), nil).Once()
 			},
 			expectedError: false,
 			verify: func(res *dto.GetCartByUserIdOutputDto) {
@@ -262,15 +262,15 @@ func (s *CartHandlerTestSuite) TestGetCartByUserId() {
 			name:  "Success - GetProductStock error degrades gracefully (Available = 0)",
 			input: &dto.GetCartByUserIdInputDto{ID: userID},
 			setupMock: func() {
+				mockCart.CartItems[0].Product.Available = 0
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
 				s.mockFileRepo.On("GeneratePresignUrl", mock.Anything, "images/sweater.png").
 					Return("https://presigned.url/images/sweater.png", nil).Once()
-				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(0), errors.New("product not found")).Once()
 			},
 			expectedError: false,
 			verify: func(res *dto.GetCartByUserIdOutputDto) {
 				s.NotNil(res)
-				s.Equal(uint(0), res.Body.CartItems[0].Available) // falls back to 0
+				s.Equal(uint(0), res.Body.CartItems[0].Available)
 			},
 		},
 		{

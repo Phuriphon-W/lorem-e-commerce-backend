@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"lorem-backend/internal/database"
 	fileRepo "lorem-backend/internal/modules/file/repository"
@@ -9,20 +10,25 @@ import (
 	"lorem-backend/internal/modules/order/repository"
 	productDto "lorem-backend/internal/modules/product/dto"
 	productRepo "lorem-backend/internal/modules/product/repository"
-	"sync"
+	"strings"
+	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"gorm.io/gorm"
 )
 
 type orderHandlerImpl struct {
+	db                database.Database
 	orderRepository   repository.OrderRepository
 	productRepository productRepo.ProductRepository
 	fileRepository    fileRepo.FileRepository
 }
 
-func NewOrderHandlerImpl(orderRepo repository.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) OrderHandler {
+func NewOrderHandlerImpl(db database.Database, orderRepo repository.OrderRepository, prodRepo productRepo.ProductRepository, fileRepo fileRepo.FileRepository) OrderHandler {
 	return &orderHandlerImpl{
+		db:                db,
 		orderRepository:   orderRepo,
 		productRepository: prodRepo,
 		fileRepository:    fileRepo,
@@ -57,66 +63,104 @@ func (h *orderHandlerImpl) CreateOrder(ctx context.Context, input *dto.CreateOrd
 		itemMap[item.ProductID] += item.Quantity
 	}
 
-	products, err := h.productRepository.GetProductsByIDs(ctx, productIDs)
-	if err != nil {
-		return nil, huma.Error500InternalServerError("Failed to verify products", err)
-	}
+	const maxRetries = 5
+	var baseDelay = 10 * time.Millisecond
 
-	// Verify all requested products exist
-	if len(products) != len(productIDs) {
-		return nil, huma.Error404NotFound("One or more products could not be found")
-	}
+	for attempt := range maxRetries {
+		var createdOrderID uuid.UUID
 
-	var totalPrice float32
-	var orderItems []database.OrderItem
-	var deductions []productRepo.StockDeduction
+		// Run everything in a single transaction
+		err := h.db.GetDb().Transaction(func(tx *gorm.DB) error {
+			// Propagate transaction in context
+			txCtx := database.WithTransaction(ctx, tx)
 
-	for _, product := range products {
-		requestedQty := itemMap[product.ID]
+			// 1. Fetch products inside transaction to see current state
+			products, err := h.productRepository.GetProductsByIDs(txCtx, productIDs)
+			if err != nil {
+				return err
+			}
 
-		// Calculate total
-		priceAtPurchase := product.Price
-		totalPrice += priceAtPurchase * float32(requestedQty)
+			// Verify all requested products exist
+			if len(products) != len(productIDs) {
+				return fmt.Errorf("one or more products could not be found")
+			}
 
-		// Build order item
-		orderItems = append(orderItems, database.OrderItem{
-			ProductID:       product.ID,
-			PriceAtPurchase: priceAtPurchase,
-			Quantity:        requestedQty,
+			var totalPrice float32
+			var orderItems []database.OrderItem
+			var deductions []productRepo.StockDeduction
+
+			for _, product := range products {
+				requestedQty := itemMap[product.ID]
+
+				priceAtPurchase := product.Price
+				totalPrice += priceAtPurchase * float32(requestedQty)
+
+				orderItems = append(orderItems, database.OrderItem{
+					ProductID:       product.ID,
+					PriceAtPurchase: priceAtPurchase,
+					Quantity:        requestedQty,
+				})
+
+				deductions = append(deductions, productRepo.StockDeduction{
+					ProductID: product.ID,
+					Quantity:  requestedQty,
+				})
+			}
+
+			// 2. Deduct stock (runs atomically and checks bounds inside transaction)
+			if err := h.productRepository.DeductProductStocks(txCtx, deductions); err != nil {
+				return err
+			}
+
+			// 3. Build and save the final order inside transaction
+			order := &database.Order{
+				UserID:      input.Body.UserID,
+				TotalPrice:  totalPrice,
+				OrderStatus: database.Pending,
+				OrderItems:  orderItems,
+			}
+
+			oid, err := h.orderRepository.CreateOrder(txCtx, order)
+			if err != nil {
+				return err
+			}
+
+			createdOrderID = oid
+			return nil
 		})
 
-		// Build deduction
-		deductions = append(deductions, productRepo.StockDeduction{
-			ProductID: product.ID,
-			Quantity:  requestedQty,
-		})
+		if err != nil {
+			// If it's a deadlock and we have retries left, retry
+			if isDeadlock(err) && attempt < maxRetries-1 {
+				time.Sleep(baseDelay * time.Duration(1<<attempt))
+				continue
+			}
+
+			// Check if it's a known error from DeductProductStocks or Huma Error
+			var humaErr huma.StatusError
+			if errors.As(err, &humaErr) {
+				return nil, humaErr
+			}
+
+			if strings.Contains(err.Error(), "insufficient stock") {
+				return nil, huma.Error400BadRequest(err.Error())
+			}
+
+			if strings.Contains(err.Error(), "could not be found") {
+				return nil, huma.Error404NotFound(err.Error())
+			}
+
+			return nil, huma.Error500InternalServerError("Failed to create order", err)
+		}
+
+		return &dto.CreatedOrderOutputDto{
+			Body: dto.CreatedOrderOutputDtoBody{
+				ID: createdOrderID,
+			},
+		}, nil
 	}
 
-	// Deduct stock
-	if err := h.productRepository.DeductProductStocks(ctx, deductions); err != nil {
-		return nil, huma.Error400BadRequest(err.Error())
-	}
-
-	// Build and save the final order
-	order := &database.Order{
-		UserID:      input.Body.UserID,
-		TotalPrice:  totalPrice,
-		OrderStatus: database.Pending,
-		OrderItems:  orderItems,
-	}
-
-	oid, err := h.orderRepository.CreateOrder(ctx, order)
-	if err != nil {
-		// Revert stock if order creation fails
-		_ = h.productRepository.AddProductStocks(ctx, deductions)
-		return nil, huma.Error500InternalServerError("Failed to create order", err)
-	}
-
-	return &dto.CreatedOrderOutputDto{
-		Body: dto.CreatedOrderOutputDtoBody{
-			ID: oid,
-		},
-	}, nil
+	return nil, huma.Error500InternalServerError("Failed to create order due to persistent database contention", nil)
 }
 
 func (h *orderHandlerImpl) GetOrders(ctx context.Context, input *dto.GetOrdersInputDto) (*dto.GetOrdersOutputDto, error) {
@@ -200,39 +244,29 @@ func (h *orderHandlerImpl) GetOrdersCount(ctx context.Context, input *struct{}) 
 func (h *orderHandlerImpl) mapOrderToResponse(ctx context.Context, ord database.Order) dto.OrderResponse {
 	items := make([]dto.OrderItemResponse, len(ord.OrderItems))
 
-	var wg sync.WaitGroup
-
 	for i, item := range ord.OrderItems {
-		wg.Add(1)
+		// generate product image url
+		itemImageUrl, err := h.fileRepository.GeneratePresignUrl(ctx, item.Product.ImageObjKey)
+		if err != nil {
+			fmt.Printf("Error generating URL for %s: %v\n", item.Product.ID, err)
+			itemImageUrl = ""
+		}
 
-		go func() {
-			defer wg.Done()
-
-			// generate product image url
-			itemImageUrl, err := h.fileRepository.GeneratePresignUrl(ctx, item.Product.ImageObjKey)
-			if err != nil {
-				fmt.Printf("Error generating URL for %s: %v\n", item.Product.ID, err)
-				itemImageUrl = ""
-			}
-
-			// Map to DTO
-			items[i] = dto.OrderItemResponse{
-				ID:              item.ID,
-				ProductID:       item.ProductID,
-				PriceAtPurchase: item.PriceAtPurchase,
-				Quantity:        item.Quantity,
-				Product: productDto.ProductDtoBase{
-					Name:        item.Product.Name,
-					Description: item.Product.Description,
-					Price:       item.Product.Price,
-					Available:   item.Product.Available,
-					ImageURL:    itemImageUrl,
-				},
-			}
-		}()
+		// Map to DTO
+		items[i] = dto.OrderItemResponse{
+			ID:              item.ID,
+			ProductID:       item.ProductID,
+			PriceAtPurchase: item.PriceAtPurchase,
+			Quantity:        item.Quantity,
+			Product: productDto.ProductDtoBase{
+				Name:        item.Product.Name,
+				Description: item.Product.Description,
+				Price:       item.Product.Price,
+				Available:   item.Product.Available,
+				ImageURL:    itemImageUrl,
+			},
+		}
 	}
-
-	wg.Wait()
 
 	var stripeExpiresAt *int64
 	if ord.StripeSessionExpiresAt != nil {
@@ -249,4 +283,15 @@ func (h *orderHandlerImpl) mapOrderToResponse(ctx context.Context, ord database.
 		OrderItems:             items,
 		CreatedAt:              ord.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
+}
+
+func isDeadlock(err error) bool {
+	if err == nil {
+		return false
+	}
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "40P01"
+	}
+	return strings.Contains(err.Error(), "40P01") || strings.Contains(err.Error(), "deadlock detected")
 }

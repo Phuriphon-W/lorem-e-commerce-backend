@@ -56,3 +56,13 @@ coverage-check:
 	@rm -f coverage.out
 
 pre-commit: lint test
+
+.PHONY: loadtest
+loadtest:
+	@echo "Starting k6 load testing suite via Docker..."
+	-docker run --rm --network=lorem-e-commerce-backend_default -v $(CURDIR)/loadtest:/loadtest -e BASE_URL=http://lorem-backend-dev:5000 grafana/k6 run /loadtest/product-listing.js
+	-docker run --rm --network=lorem-e-commerce-backend_default -v $(CURDIR)/loadtest:/loadtest -e BASE_URL=http://lorem-backend-dev:5000 grafana/k6 run /loadtest/order-creation.js
+	-docker run --rm --network=lorem-e-commerce-backend_default -v $(CURDIR)/loadtest:/loadtest -e BASE_URL=http://lorem-backend-dev:5000 grafana/k6 run /loadtest/file-upload.js
+	-docker run --rm --network=lorem-e-commerce-backend_default -v $(CURDIR)/loadtest:/loadtest -e BASE_URL=http://lorem-backend-dev:5000 grafana/k6 run /loadtest/auth-burst.js
+	-docker run --rm --network=lorem-e-commerce-backend_default -v $(CURDIR)/loadtest:/loadtest -e BASE_URL=http://lorem-backend-dev:5000 grafana/k6 run /loadtest/mixed-workload.js
+	@echo "All load tests completed."

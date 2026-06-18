@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"lorem-backend/internal/config"
+	"time"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,7 +18,9 @@ func NewPostgresDb(conf *config.Config) Database {
 	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%v sslmode=disable TimeZone=Asia/Bangkok",
 		conf.DBHost, conf.DBUser, conf.DBPassword, conf.DBName, conf.DBPort)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		PrepareStmt: true,
+	})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -44,10 +47,16 @@ func NewPostgresDb(conf *config.Config) Database {
 	}
 
 	// SetMaxIdleConns sets the maximum number of connections in the idle connection pool.
-	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxIdleConns(conf.DBMaxIdleConns)
 
 	// SetMaxOpenConns sets the maximum number of open connections to the database.
-	sqlDB.SetMaxOpenConns(20)
+	sqlDB.SetMaxOpenConns(conf.DBMaxOpenConns)
+
+	// SetConnMaxLifetime sets the maximum amount of time a connection may be reused.
+	sqlDB.SetConnMaxLifetime(time.Duration(conf.DBConnMaxLifetimeMin) * time.Minute)
+
+	// SetConnMaxIdleTime sets the maximum amount of time a connection may be idle.
+	sqlDB.SetConnMaxIdleTime(time.Duration(conf.DBConnMaxIdleTimeMin) * time.Minute)
 
 	log.Println("Database Connected Successfully")
 	return &postgresDatabase{
