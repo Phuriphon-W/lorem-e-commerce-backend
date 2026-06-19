@@ -1,5 +1,9 @@
 services:
   backend:
+    build:
+      context: .
+      target: prod
+      dockerfile: Dockerfile
     image: phuriphon47/lorem-e-commerce-backend:latest
     container_name: lorem-backend-prod
     ports:
