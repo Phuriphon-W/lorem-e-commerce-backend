@@ -7,12 +7,12 @@ import (
 )
 
 type UserAddress struct {
-	ZipCode     string `json:"zip" doc:"Zip code"`
-	Road        string `json:"road" doc:"Road"`
-	District    string `json:"district" doc:"District"`
-	SubDistrict string `json:"subDistrict" doc:"Sub District"`
-	HouseNumber string `json:"houseNumber" doc:"House Number"`
-	Province    string `json:"province" doc:"Province"`
+	ZipCode     *string `json:"zip" doc:"Zip code"`
+	Road        *string `json:"road" doc:"Road"`
+	District    *string `json:"district" doc:"District"`
+	SubDistrict *string `json:"subDistrict" doc:"Sub District"`
+	HouseNumber *string `json:"houseNumber" doc:"House Number"`
+	Province    *string `json:"province" doc:"Province"`
 }
 
 type UserDto struct {
@@ -21,7 +21,7 @@ type UserDto struct {
 	FirstName string      `json:"firstName" required:"true" maxLength:"20" doc:"First Name" example:"John"`
 	LastName  string      `json:"lastName" required:"true" maxLength:"20" doc:"Last Name" example:"Doe"`
 	Email     string      `json:"email" required:"true" doc:"Email"`
-	Telephone string      `json:"telephone" doc:"Phone number"`
+	Telephone *string     `json:"telephone" doc:"Phone number"`
 	Address   UserAddress `json:"address" doc:"User address details"`
 	IsAdmin   bool        `json:"isAdmin" doc:"Whether the user is an admin"`
 }

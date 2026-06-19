@@ -36,12 +36,12 @@ func (u *userHandlerImpl) GetUserById(ctx context.Context, input *dto.GetUserByI
 	}
 
 	userAddress := dto.UserAddress{
-		ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
-		Road:        utils.PtrToStringOrDefault(user.Road, "null"),
-		District:    utils.PtrToStringOrDefault(user.District, "null"),
-		SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
-		HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
-		Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+		ZipCode:     user.ZipCode,
+		Road:        user.Road,
+		District:    user.District,
+		SubDistrict: user.SubDistrict,
+		HouseNumber: user.HouseNumber,
+		Province:    user.Province,
 	}
 
 	res := &dto.GetUserByIdOutputDto{
@@ -51,7 +51,7 @@ func (u *userHandlerImpl) GetUserById(ctx context.Context, input *dto.GetUserByI
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
 			Email:     user.Email,
-			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Telephone: user.Telephone,
 			Address:   userAddress,
 			IsAdmin:   isAdmin,
 		},
@@ -86,12 +86,12 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 	}
 
 	userAddress := dto.UserAddress{
-		ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
-		Road:        utils.PtrToStringOrDefault(user.Road, "null"),
-		District:    utils.PtrToStringOrDefault(user.District, "null"),
-		SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
-		HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
-		Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+		ZipCode:     user.ZipCode,
+		Road:        user.Road,
+		District:    user.District,
+		SubDistrict: user.SubDistrict,
+		HouseNumber: user.HouseNumber,
+		Province:    user.Province,
 	}
 
 	res := &dto.GetMeOutputDto{
@@ -101,7 +101,7 @@ func (u *userHandlerImpl) GetMe(ctx context.Context, input *dto.GetMeInputDto) (
 			LastName:  user.LastName,
 			FirstName: user.FirstName,
 			Email:     user.Email,
-			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Telephone: user.Telephone,
 			Address:   userAddress,
 			IsAdmin:   isAdmin,
 		},
@@ -136,12 +136,12 @@ func (u *userHandlerImpl) UpdateMe(ctx context.Context, input *dto.UpdateMeInput
 	user.FirstName = input.Body.FirstName
 	user.LastName = input.Body.LastName
 	user.Telephone = utils.StringToPtr(input.Body.Telephone)
-	user.HouseNumber = utils.StringToPtr(input.Body.Address.HouseNumber)
-	user.Road = utils.StringToPtr(input.Body.Address.Road)
-	user.District = utils.StringToPtr(input.Body.Address.District)
-	user.SubDistrict = utils.StringToPtr(input.Body.Address.SubDistrict)
-	user.Province = utils.StringToPtr(input.Body.Address.Province)
-	user.ZipCode = utils.StringToPtr(input.Body.Address.ZipCode)
+	user.HouseNumber = utils.PtrToNilIfEmpty(input.Body.Address.HouseNumber)
+	user.Road = utils.PtrToNilIfEmpty(input.Body.Address.Road)
+	user.District = utils.PtrToNilIfEmpty(input.Body.Address.District)
+	user.SubDistrict = utils.PtrToNilIfEmpty(input.Body.Address.SubDistrict)
+	user.Province = utils.PtrToNilIfEmpty(input.Body.Address.Province)
+	user.ZipCode = utils.PtrToNilIfEmpty(input.Body.Address.ZipCode)
 
 	// Save the updated user back to the database
 	err = u.userRepository.UpdateUser(ctx, user)
@@ -171,12 +171,12 @@ func (u *userHandlerImpl) GetUsers(ctx context.Context, input *dto.GetUsersInput
 		}
 
 		userAddress := dto.UserAddress{
-			ZipCode:     utils.PtrToStringOrDefault(user.ZipCode, "null"),
-			Road:        utils.PtrToStringOrDefault(user.Road, "null"),
-			District:    utils.PtrToStringOrDefault(user.District, "null"),
-			SubDistrict: utils.PtrToStringOrDefault(user.SubDistrict, "null"),
-			HouseNumber: utils.PtrToStringOrDefault(user.HouseNumber, "null"),
-			Province:    utils.PtrToStringOrDefault(user.Province, "null"),
+			ZipCode:     user.ZipCode,
+			Road:        user.Road,
+			District:    user.District,
+			SubDistrict: user.SubDistrict,
+			HouseNumber: user.HouseNumber,
+			Province:    user.Province,
 		}
 
 		userDtos[i] = dto.UserDto{
@@ -185,7 +185,7 @@ func (u *userHandlerImpl) GetUsers(ctx context.Context, input *dto.GetUsersInput
 			FirstName: user.FirstName,
 			LastName:  user.LastName,
 			Email:     user.Email,
-			Telephone: utils.PtrToStringOrDefault(user.Telephone, "null"),
+			Telephone: user.Telephone,
 			Address:   userAddress,
 			IsAdmin:   isAdmin,
 		}

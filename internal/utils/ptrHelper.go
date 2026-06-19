@@ -13,3 +13,10 @@ func StringToPtr(s string) *string {
 	}
 	return &s
 }
+
+func PtrToNilIfEmpty(ptr *string) *string {
+	if ptr != nil && *ptr == "" {
+		return nil
+	}
+	return ptr
+}

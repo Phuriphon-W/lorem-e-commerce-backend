@@ -55,7 +55,7 @@ func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *ech
 	rateLimiter := middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		Skipper: func(c echo.Context) bool {
 			path := c.Path()
-			return path != "/auth/signin" && path != "/auth/register" && path != "/auth/forgot-password"
+			return path != "/api/v1/auth/signin" && path != "/api/v1/auth/register" && path != "/api/v1/auth/forgot-password"
 		},
 		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
 			middleware.RateLimiterMemoryStoreConfig{
@@ -116,9 +116,9 @@ func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *ech
 	api := humaecho.New(router, humaConfig)
 
 	// Setup Groups
-	authGroup := huma.NewGroup(api, "/auth")
-	protectedGroup := huma.NewGroup(api, "/api")
-	publicApiGroup := huma.NewGroup(api, "/api")
+	authGroup := huma.NewGroup(api, "/api/v1/auth")
+	protectedGroup := huma.NewGroup(api, "/api/v1")
+	publicApiGroup := huma.NewGroup(api, "/api/v1")
 
 	// Apply verify token middleware to the rest
 	protectedGroup.UseMiddleware(loremMiddleware.VerifyToken(api))
@@ -649,8 +649,8 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 	paymentHandler := paymentHandler.NewPaymentHandlerImpl(paymentRepository, orderRepo, productRepo, stripeGateway, wsSvc)
 
 	// Register Webhook directly via Echo
-	// POST /api/webhook/stripe
-	e.POST("/api/webhook/stripe", paymentHandler.HandleStripeWebhook)
+	// POST /api/v1/webhook/stripe
+	e.POST("/api/v1/webhook/stripe", paymentHandler.HandleStripeWebhook)
 
 	// Register standard API via huma
 	// POST /api/payment/checkout
