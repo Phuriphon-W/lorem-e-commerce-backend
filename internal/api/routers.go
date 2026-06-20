@@ -39,6 +39,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const APIVersion = "/api/v1"
+
 func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *echo.Echo {
 	router := echo.New()
 	router.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -55,7 +57,7 @@ func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *ech
 	rateLimiter := middleware.RateLimiterWithConfig(middleware.RateLimiterConfig{
 		Skipper: func(c echo.Context) bool {
 			path := c.Path()
-			return path != "/api/v1/auth/signin" && path != "/api/v1/auth/register" && path != "/api/v1/auth/forgot-password"
+			return path != APIVersion+"/auth/signin" && path != APIVersion+"/auth/register" && path != APIVersion+"/auth/forgot-password"
 		},
 		Store: middleware.NewRateLimiterMemoryStoreWithConfig(
 			middleware.RateLimiterMemoryStoreConfig{
@@ -116,9 +118,9 @@ func NewRouter(db database.Database, s3 *s3.Client, redisCache cache.Cache) *ech
 	api := humaecho.New(router, humaConfig)
 
 	// Setup Groups
-	authGroup := huma.NewGroup(api, "/api/v1/auth")
-	protectedGroup := huma.NewGroup(api, "/api/v1")
-	publicApiGroup := huma.NewGroup(api, "/api/v1")
+	authGroup := huma.NewGroup(api, APIVersion+"/auth")
+	protectedGroup := huma.NewGroup(api, APIVersion)
+	publicApiGroup := huma.NewGroup(api, APIVersion)
 
 	// Apply verify token middleware to the rest
 	protectedGroup.UseMiddleware(loremMiddleware.VerifyToken(api))
@@ -650,7 +652,7 @@ func registerPaymentRoute(api huma.API, e *echo.Echo, db database.Database, orde
 
 	// Register Webhook directly via Echo
 	// POST /api/v1/webhook/stripe
-	e.POST("/api/v1/webhook/stripe", paymentHandler.HandleStripeWebhook)
+	e.POST(APIVersion+"/webhook/stripe", paymentHandler.HandleStripeWebhook)
 
 	// Register standard API via huma
 	// POST /api/payment/checkout
