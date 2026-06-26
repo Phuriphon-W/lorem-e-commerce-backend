@@ -1,4 +1,4 @@
-﻿# Lorem E-Commerce Backend
+# Lorem E-Commerce Backend
 
 ![Go](https://img.shields.io/badge/Go-1.25-blue) ![Docker](https://img.shields.io/badge/Docker-ready-blue) ![CI](https://img.shields.io/github/actions/workflow/status/Phuriphon-W/lorem-e-commerce-backend/ci.yml?branch=main)
 
@@ -36,8 +36,11 @@ flowchart TD
     PG[("PostgreSQL 18")]
     Redis[("Redis")]
     S3["AWS S3"]
+    PayGateway["Payment Gateway\n(Stripe Adapter)"]
     Stripe["Stripe API"]
+    EmailSvc["Email Service\n(SMTP Adapter)"]
     SMTP["SMTP Server"]
+    WS["WebSocket Service\n(Real-time Order Events)"]
 
     Client --> Echo
     Echo --> Handlers
@@ -45,8 +48,12 @@ flowchart TD
     Repos --> PG
     Repos --> Redis
     Repos --> S3
-    Handlers --> Stripe
-    Handlers --> SMTP
+    Handlers --> PayGateway
+    PayGateway --> Stripe
+    Handlers --> EmailSvc
+    EmailSvc --> SMTP
+    Handlers --> WS
+    WS --> Client
 ```
 
 ---
