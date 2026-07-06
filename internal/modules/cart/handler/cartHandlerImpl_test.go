@@ -388,7 +388,7 @@ func (s *CartHandlerTestSuite) TestCreateCartItem() {
 				}
 				// First GetCartByUserId for CreateCartItem
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
-				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(10), nil).Once()
+				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(10), nil).Twice()
 				s.mockCartRepo.On("GetCartItem", mock.Anything, cartID, productID).Return(existingItem, nil).Once()
 				// The handler calls EditCartItem internally, which calls GetCartByUserId again
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
@@ -555,6 +555,7 @@ func (s *CartHandlerTestSuite) TestEditCartItem() {
 			},
 			setupMock: func() {
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
+				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(10), nil).Once()
 				s.mockCartRepo.On("EditCartItem", mock.Anything, cartID, productID, uint(5)).Return(nil).Once()
 			},
 			expectedError: false,
@@ -592,6 +593,7 @@ func (s *CartHandlerTestSuite) TestEditCartItem() {
 			},
 			setupMock: func() {
 				s.mockCartRepo.On("GetCartByUserId", mock.Anything, userID).Return(mockCart, nil).Once()
+				s.mockProductRepo.On("GetProductStock", mock.Anything, productID).Return(uint(10), nil).Once()
 				s.mockCartRepo.On("EditCartItem", mock.Anything, cartID, productID, uint(5)).
 					Return(errors.New("db update error")).Once()
 			},

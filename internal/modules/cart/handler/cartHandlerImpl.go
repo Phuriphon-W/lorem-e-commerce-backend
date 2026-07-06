@@ -165,6 +165,16 @@ func (h *cartHandlerImpl) EditCartItem(ctx context.Context, input *dto.EditCartI
 		return nil, huma.Error404NotFound("Cart not found", err)
 	}
 
+	// Validate against actual product stock
+	availableStock, err := h.productRepo.GetProductStock(ctx, input.Body.ProductID)
+	if err != nil {
+		return nil, huma.Error404NotFound("Product not found", err)
+	}
+	if input.Body.Quantity > availableStock {
+		errMsg := fmt.Sprintf("Insufficient stock: only %d available", availableStock)
+		return nil, huma.Error400BadRequest(errMsg)
+	}
+
 	err = h.cartRepo.EditCartItem(ctx, cart.ID, input.Body.ProductID, input.Body.Quantity)
 	if err != nil {
 		return nil, huma.Error500InternalServerError("Failed to update cart item", err)

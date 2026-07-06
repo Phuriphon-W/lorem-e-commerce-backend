@@ -61,11 +61,7 @@ func (r *paymentPostgresRepository) GetUserPaymentsByUserID(ctx context.Context,
 	}
 
 	// Apply Ordering
-	if orderBy == "" {
-		query = query.Order("created_at DESC") // Newest first by default
-	} else {
-		query = query.Order(orderBy)
-	}
+	query = query.Order(orderBy)
 
 	offSet := (page - 1) * pageSize
 

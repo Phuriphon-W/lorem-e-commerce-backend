@@ -56,7 +56,7 @@ func main() {
 			}
 			log.Printf("Starting server on port %v...\n", port)
 			log.Printf("API documentation is hosted at http://localhost:%d/docs\n", port)
-			http.ListenAndServe(fmt.Sprintf(":%d", port), router)
+			log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), router))
 		})
 	})
 
