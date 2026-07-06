@@ -46,11 +46,7 @@ func (r *orderPostgresRepository) GetOrdersByUserID(ctx context.Context, userID 
 		query = query.Where("order_status = ?", status)
 	}
 
-	if orderBy != "" {
-		query = query.Order(orderBy)
-	} else {
-		query = query.Order("created_at DESC")
-	}
+	query = query.Order(orderBy)
 
 	// Count Total Records
 	if err := query.Count(&total).Error; err != nil {

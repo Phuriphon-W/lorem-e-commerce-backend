@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"lorem-backend/internal/database"
+	"lorem-backend/internal/utils"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -36,12 +37,9 @@ func (r *userPostgresRepository) GetUsers(ctx context.Context, page, pageSize in
 	}
 
 	// Apply Ordering
-	if order != "" {
-		query = query.Order(order)
-	} else {
-		// Default order: created_at DESC
-		query = query.Order("created_at DESC")
-	}
+	allowedColumns := []string{"created_at", "first_name", "last_name"}
+	safeOrder := utils.SanitizeOrder(order, allowedColumns, "created_at DESC")
+	query = query.Order(safeOrder)
 
 	offset := (page - 1) * pageSize
 	err := query.Limit(int(pageSize)).Offset(int(offset)).Find(&users).Error
