@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	Port                 int           `mapstructure:"PORT"`
+	APIVersion           string        `mapstructure:"API_VERSION"`
 	DBHost               string        `mapstructure:"DB_HOST"`
 	DBUser               string        `mapstructure:"DB_USER"`
 	DBPassword           string        `mapstructure:"DB_PASSWORD"`
@@ -50,6 +51,7 @@ func LoadConfig() {
 
 	// Set Default Values (Used if not found in .env)
 	viper.SetDefault("PORT", 5000)
+	viper.SetDefault("API_VERSION", "/api/v1")
 	viper.SetDefault("DB_HOST", "localhost")
 	viper.SetDefault("DB_USER", "admin")
 	viper.SetDefault("DB_PASSWORD", "password")

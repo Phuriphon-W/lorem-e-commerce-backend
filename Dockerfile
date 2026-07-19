@@ -6,6 +6,7 @@ RUN go mod download
 
 # --- Development Stage ---
 FROM base AS dev
+RUN apk --no-cache add curl
 # Install air for hot reload
 RUN go install github.com/air-verse/air@latest
 CMD ["air", "-c", ".air.toml"]
