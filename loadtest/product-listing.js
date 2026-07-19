@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL } from './config.js';
+import { API_BASE } from './config.js';
 
 export const options = {
   stages: [
@@ -25,7 +25,7 @@ export default function () {
   const pageNumber = Math.floor(Math.random() * 2) + 1; // page 1 or 2
   const pageSize = 20;
 
-  let url = `${BASE_URL}/api/product?pageNumber=${pageNumber}&pageSize=${pageSize}`;
+  let url = `${API_BASE}/product?pageNumber=${pageNumber}&pageSize=${pageSize}`;
   if (category) url += `&category=${encodeURIComponent(category)}`;
   if (search) url += `&search=${encodeURIComponent(search)}`;
   if (orderBy) url += `&orderBy=${orderBy}`;

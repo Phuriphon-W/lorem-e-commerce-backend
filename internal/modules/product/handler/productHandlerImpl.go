@@ -8,9 +8,9 @@ import (
 	file "lorem-backend/internal/modules/file/repository"
 	"lorem-backend/internal/modules/product/dto"
 	"lorem-backend/internal/modules/product/repository"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
+	"github.com/google/uuid"
 )
 
 type productHandlerImpl struct {
@@ -27,7 +27,7 @@ func NewProductHandlerImpl(repo repository.ProductRepository, fileRepo file.File
 
 func (p *productHandlerImpl) CreateProduct(ctx context.Context, input *dto.CreateProductInputDto) (*dto.CreatedProductOutputDto, error) {
 	formData := input.RawBody.Data()
-	putKey := fmt.Sprintf("product-images/%v-%v", time.Now().Unix(), formData.ImageFile.Filename)
+	putKey := fmt.Sprintf("product-images/%v-%v", uuid.New().String(), formData.ImageFile.Filename)
 
 	objKey, err := p.fileRepository.UploadFile(
 		ctx,
@@ -194,7 +194,7 @@ func (p *productHandlerImpl) UpdateProduct(ctx context.Context, input *dto.Updat
 
 	// If a new image file is provided, upload it and update the obj_key
 	if formData.ImageFile.Filename != "" {
-		putKey := fmt.Sprintf("product-images/%v-%v", time.Now().Unix(), formData.ImageFile.Filename)
+		putKey := fmt.Sprintf("product-images/%v-%v", uuid.New().String(), formData.ImageFile.Filename)
 
 		objKey, err := p.fileRepository.UploadFile(
 			ctx,

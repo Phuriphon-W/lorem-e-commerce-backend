@@ -6,7 +6,6 @@ import (
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/file/dto"
 	"lorem-backend/internal/modules/file/repository"
-	"time"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -27,8 +26,8 @@ func (f *fileHandlerImpl) UploadFile(ctx context.Context, input *dto.UploadFileI
 	file := formData.File
 	objKey := formData.ObjectBaseKey
 
-	// objKey/unixTime-filename (Add unix time prefix to prevent name collision)
-	putKey := fmt.Sprintf("%v/%v-%v", objKey, time.Now().Unix(), file.Filename)
+	// objKey/uuid-filename (UUID guarantees uniqueness even under high concurrency)
+	putKey := fmt.Sprintf("%v/%v-%v", objKey, uuid.New().String(), file.Filename)
 
 	// Upload to S3
 	key, err := f.fileRepo.UploadFile(ctx, putKey, file, file.Size, file.ContentType)

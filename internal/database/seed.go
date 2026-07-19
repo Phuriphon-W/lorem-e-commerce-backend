@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -90,7 +89,7 @@ func SeedDatabase(ctx context.Context, db *gorm.DB, fileRepo SeedFileRepository)
 
 		stat, _ := f.Stat()
 		fileName := filepath.Base(p.ImageFile)
-		putKey := fmt.Sprintf("product-images/%v-%v", time.Now().UnixNano(), fileName)
+		putKey := fmt.Sprintf("product-images/%v-%v", uuid.New().String(), fileName)
 
 		// Upload to Object Storage
 		objKey, err := fileRepo.UploadFile(ctx, putKey, f, stat.Size(), "image/jpeg")
