@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL, signinUser } from './config.js';
+import { API_BASE, signinUser } from './config.js';
 
 export const options = {
   stages: [
@@ -40,7 +40,7 @@ export default function (data) {
     },
   };
 
-  const res = http.post(`${BASE_URL}/api/file/upload`, payload, params);
+  const res = http.post(`${API_BASE}/file/upload`, payload, params);
 
   check(res, {
     'status is 201': (r) => r.status === 201,

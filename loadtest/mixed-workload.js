@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Trend } from 'k6/metrics';
-import { BASE_URL, registerUser, getAuthHeaders } from './config.js';
+import { API_BASE, registerUser, getAuthHeaders } from './config.js';
 
 // Custom metrics to verify reads vs. writes separately
 const readDurationTrend = new Trend('read_duration');
@@ -23,10 +23,10 @@ export const options = {
 
 // Setup: fetch categories and product IDs to use during the test
 export function setup() {
-  const categoriesRes = http.get(`${BASE_URL}/api/category`);
+  const categoriesRes = http.get(`${API_BASE}/category`);
   const categories = categoriesRes.json().categories || [];
 
-  const productsRes = http.get(`${BASE_URL}/api/product?pageSize=20`);
+  const productsRes = http.get(`${API_BASE}/product?pageSize=20`);
   const products = productsRes.json().products || [];
 
   return {
@@ -46,7 +46,7 @@ export default function (data) {
   if (rand < 0.50) {
     // 1. Browse products (50%)
     const page = Math.floor(Math.random() * 2) + 1;
-    const res = http.get(`${BASE_URL}/api/product?pageNumber=${page}&pageSize=10`);
+    const res = http.get(`${API_BASE}/product?pageNumber=${page}&pageSize=10`);
     readDurationTrend.add(res.timings.duration);
     check(res, { 'browse status is 200': (r) => r.status === 200 });
   } 
@@ -54,7 +54,7 @@ export default function (data) {
     // 2. View product detail (20%)
     if (productIds && productIds.length > 0) {
       const pid = productIds[Math.floor(Math.random() * productIds.length)];
-      const res = http.get(`${BASE_URL}/api/product/${pid}`);
+      const res = http.get(`${API_BASE}/product/${pid}`);
       readDurationTrend.add(res.timings.duration);
       check(res, { 'product detail status is 200': (r) => r.status === 200 });
     } else {
@@ -63,7 +63,7 @@ export default function (data) {
   } 
   else if (rand < 0.80) {
     // 3. View categories (10%)
-    const res = http.get(`${BASE_URL}/api/category`);
+    const res = http.get(`${API_BASE}/category`);
     readDurationTrend.add(res.timings.duration);
     check(res, { 'category list status is 200': (r) => r.status === 200 });
   } 
@@ -87,7 +87,7 @@ export default function (data) {
           productId: pid,
           quantity: 1,
         });
-        const res = http.post(`${BASE_URL}/api/user/${session.userId}/cart`, payload, authHeaders);
+        const res = http.post(`${API_BASE}/user/${session.userId}/cart`, payload, authHeaders);
         writeDurationTrend.add(res.timings.duration);
         check(res, { 'add to cart returns 2xx or 400': (r) => r.status === 200 || r.status === 201 || r.status === 400 });
       } else {
@@ -102,7 +102,7 @@ export default function (data) {
           userId: session.userId,
           items: [{ productId: pid, quantity: 1 }],
         });
-        const res = http.post(`${BASE_URL}/api/order`, payload, authHeaders);
+        const res = http.post(`${API_BASE}/order`, payload, authHeaders);
         writeDurationTrend.add(res.timings.duration);
         check(res, { 'order returns 2xx or 400': (r) => r.status === 200 || r.status === 201 || r.status === 400 });
       } else {
@@ -118,7 +118,7 @@ export default function (data) {
           userId: session.userId,
           items: [{ productId: pid, quantity: 1 }],
         });
-        const orderRes = http.post(`${BASE_URL}/api/order`, orderPayload, authHeaders);
+        const orderRes = http.post(`${API_BASE}/order`, orderPayload, authHeaders);
         writeDurationTrend.add(orderRes.timings.duration);
 
         if (orderRes.status === 200 || orderRes.status === 201) {
@@ -127,7 +127,7 @@ export default function (data) {
             userId: session.userId,
             orderId: orderId,
           });
-          const checkoutRes = http.post(`${BASE_URL}/api/payment/checkout`, checkoutPayload, authHeaders);
+          const checkoutRes = http.post(`${API_BASE}/payment/checkout`, checkoutPayload, authHeaders);
           writeDurationTrend.add(checkoutRes.timings.duration);
           check(checkoutRes, { 'checkout returns 2xx': (r) => r.status === 200 || r.status === 201 });
         }

@@ -1,6 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { BASE_URL, signinUser, getAuthHeaders } from './config.js';
+import { API_BASE, signinUser, getAuthHeaders } from './config.js';
 
 export const options = {
   scenarios: {
@@ -19,7 +19,7 @@ export const options = {
 };
 
 export function setup() {
-  const res = http.get(`${BASE_URL}/api/product?pageSize=10`);
+  const res = http.get(`${API_BASE}/product?pageSize=10`);
   const products = res.json().products || [];
   const productIds = products.map((p) => p.id);
 
@@ -67,7 +67,7 @@ export default function (data) {
   });
 
   const params = getAuthHeaders(authToken);
-  const res = http.post(`${BASE_URL}/api/order`, payload, params);
+  const res = http.post(`${API_BASE}/order`, payload, params);
 
   check(res, {
     'is not 500': (r) => r.status !== 500,

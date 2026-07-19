@@ -1,7 +1,14 @@
 import http from 'k6/http';
 import { check } from 'k6';
 
-export const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
+// Host only — no path. Override via -e BASE_URL=http://my-host:5000
+const BASE_URL = __ENV.BASE_URL || 'http://localhost:5000';
+
+// API version — the single place to update when versioning changes.
+const API_VERSION = __ENV.API_VERSION || 'v1';
+
+// Composed base used by every test file.
+export const API_BASE = `${BASE_URL}/api/${API_VERSION}`;
 
 // Default password for all test users
 export const TEST_PASSWORD = 'password123';
@@ -28,7 +35,7 @@ export function registerUser(vuId) {
     },
   };
 
-  const res = http.post(`${BASE_URL}/auth/register`, payload, params);
+  const res = http.post(`${API_BASE}/auth/register`, payload, params);
   const success = check(res, {
     'register status is 200 or 201': (r) => r.status === 200 || r.status === 201,
   });
@@ -63,7 +70,7 @@ export function signinUser(email, password = TEST_PASSWORD, vuId = 1) {
     },
   };
 
-  const res = http.post(`${BASE_URL}/auth/signin`, payload, params);
+  const res = http.post(`${API_BASE}/auth/signin`, payload, params);
   const success = check(res, {
     'signin status is 200': (r) => r.status === 200,
   });

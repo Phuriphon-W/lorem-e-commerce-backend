@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import execution from 'k6/execution';
-import { BASE_URL } from './config.js';
+import { API_BASE } from './config.js';
 
 export const options = {
   scenarios: {
@@ -51,7 +51,7 @@ export default function () {
     },
   };
 
-  const res = http.post(`${BASE_URL}/auth/signin`, payload, params);
+  const res = http.post(`${API_BASE}/auth/signin`, payload, params);
 
   if (isSingleIpScenario) {
     // For single IP, the first 5 requests should return 404, and subsequent requests should return 429
