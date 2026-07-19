@@ -1,0 +1,11 @@
+services:
+  stripe-cli:
+    image: stripe/stripe-cli:v1.43.8
+    container_name: stripe-cli
+    # Adjust the --forward-to path if your webhook endpoint is different
+    command: listen --api-key ${STRIPE_SECRET_KEY} --forward-to backend:5000${API_VERSION}/webhook/stripe
+    env_file:
+      - .env
+    depends_on:
+      backend:
+        condition: service_healthy
