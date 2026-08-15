@@ -49,6 +49,7 @@ test:
 
 coverage-check:
 	go test -coverprofile coverage.out ./internal/modules/... ./internal/api/middleware/... ./internal/utils/...
+	@grep -v "mock_" coverage.out > coverage_tmp.out && mv coverage_tmp.out coverage.out
 	@COVERAGE=$$(go tool cover -func coverage.out | grep total | awk '{print $$3}' | tr -d '%'); \
 	echo "Total coverage: $$COVERAGE%"; \
 	awk "BEGIN{if ($$COVERAGE + 0 < 80) {print \"FAIL: Coverage \" $$COVERAGE \"% is below 80% threshold\"; exit 1}}"
