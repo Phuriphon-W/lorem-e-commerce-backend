@@ -5,14 +5,12 @@ import (
 	"context"
 	"errors"
 	"lorem-backend/internal/database"
-	"mime/multipart"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 )
@@ -20,20 +18,6 @@ import (
 // ────────────────────────────────────────────────────────────
 // Mock ObjectStorage Helper
 // ────────────────────────────────────────────────────────────
-
-type MockObjectStorage struct {
-	mock.Mock
-}
-
-func (m *MockObjectStorage) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, objKey, file, size, contentType)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockObjectStorage) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
-	args := m.Called(ctx, objKey)
-	return args.String(0), args.Error(1)
-}
 
 // ────────────────────────────────────────────────────────────
 // Suite Setup

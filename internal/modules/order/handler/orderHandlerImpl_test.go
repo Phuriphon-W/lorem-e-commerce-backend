@@ -3,7 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
-	"mime/multipart"
+	"lorem-backend/internal/modules/order/repository"
 	"testing"
 	"time"
 
@@ -23,145 +23,7 @@ import (
 // Mock Implementations
 // ────────────────────────────────────────────────────────────
 
-type MockOrderRepository struct {
-	mock.Mock
-}
-
-func (m *MockOrderRepository) CreateOrder(ctx context.Context, order *database.Order) (uuid.UUID, error) {
-	args := m.Called(ctx, order)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockOrderRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, status string, orderBy string) ([]database.Order, int64, error) {
-	args := m.Called(ctx, userID, page, pageSize, status, orderBy)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Order), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*database.Order, error) {
-	args := m.Called(ctx, orderID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Order), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status database.OrderStatus) error {
-	args := m.Called(ctx, orderID, status)
-	return args.Error(0)
-}
-
-func (m *MockOrderRepository) UpdateOrderSession(ctx context.Context, orderID uuid.UUID, sessionID, sessionURL string, expiresAt *time.Time) error {
-	args := m.Called(ctx, orderID, sessionID, sessionURL, expiresAt)
-	return args.Error(0)
-}
-
-func (m *MockOrderRepository) GetOrdersCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return int64(args.Int(0)), args.Error(1)
-}
-
-type MockProductRepository struct {
-	mock.Mock
-}
-
-func (m *MockProductRepository) CreateProduct(ctx context.Context, product *database.Product) (uuid.UUID, error) {
-	args := m.Called(ctx, product)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockProductRepository) GetProducts(ctx context.Context, page int64, pageSize int64, category, search, order string) ([]database.Product, int64, error) {
-	args := m.Called(ctx, page, pageSize, category, search, order)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockProductRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*database.Product, error) {
-	args := m.Called(ctx, productID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
-	args := m.Called(ctx, productIDs)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
-	args := m.Called(ctx, productId)
-	return args.Get(0).(uint), args.Error(1)
-}
-
-func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
-	args := m.Called(ctx, productID, updateData)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(int64), args.Error(1)
-}
-
-func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepo.StockDeduction) error {
-	args := m.Called(ctx, deductions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) AddProductStocks(ctx context.Context, additions []productRepo.StockDeduction) error {
-	args := m.Called(ctx, additions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) DeleteProductByID(ctx context.Context, productID uuid.UUID) error {
-	args := m.Called(ctx, productID)
-	return args.Error(0)
-}
-
-type MockFileRepository struct {
-	mock.Mock
-}
-
-func (m *MockFileRepository) CreateFileMeta(ctx context.Context, fileMeta *database.File) (uuid.UUID, error) {
-	args := m.Called(ctx, fileMeta)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockFileRepository) GetFileMetaByID(ctx context.Context, fileID uuid.UUID) (*database.File, error) {
-	args := m.Called(ctx, fileID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.File), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockFileRepository) GetAllFilesMetadata(ctx context.Context, page int64, pageSize int64) ([]database.File, int64, error) {
-	args := m.Called(ctx, page, pageSize)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.File), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockFileRepository) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, objKey, file, size, contentType)
-	return args.String(0), args.Error(1)
-}
-
-var _ fileRepo.FileRepository = (*MockFileRepository)(nil)
-
-func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
-	args := m.Called(ctx, objKey)
-	return args.String(0), args.Error(1)
-}
+var _ fileRepo.FileRepository = (*fileRepo.MockFileRepository)(nil)
 
 // ────────────────────────────────────────────────────────────
 // Test Suite Setup
@@ -170,18 +32,18 @@ func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey stri
 type OrderHandlerTestSuite struct {
 	suite.Suite
 	mockDB          *database.MockDatabase
-	mockOrderRepo   *MockOrderRepository
-	mockProductRepo *MockProductRepository
-	mockFileRepo    *MockFileRepository
+	mockOrderRepo   *repository.MockOrderRepository
+	mockProductRepo *productRepo.MockProductRepository
+	mockFileRepo    *fileRepo.MockFileRepository
 	handler         OrderHandler
 	ctx             context.Context
 }
 
 func (s *OrderHandlerTestSuite) SetupTest() {
 	s.mockDB = database.NewMockDatabase(s.T())
-	s.mockOrderRepo = new(MockOrderRepository)
-	s.mockProductRepo = new(MockProductRepository)
-	s.mockFileRepo = new(MockFileRepository)
+	s.mockOrderRepo = repository.NewMockOrderRepository(s.T())
+	s.mockProductRepo = productRepo.NewMockProductRepository(s.T())
+	s.mockFileRepo = fileRepo.NewMockFileRepository(s.T())
 	s.handler = NewOrderHandlerImpl(s.mockDB, s.mockOrderRepo, s.mockProductRepo, s.mockFileRepo)
 	s.ctx = context.Background()
 }
@@ -749,7 +611,7 @@ func TestOrderHandlerTestSuite(t *testing.T) {
 }
 
 func (s *OrderHandlerTestSuite) TestGetOrdersCount_Success() {
-	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(85, nil).Once()
+	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(int64(85), nil).Once()
 
 	res, err := s.handler.GetOrdersCount(s.ctx, &struct{}{})
 	s.NoError(err)
@@ -758,7 +620,7 @@ func (s *OrderHandlerTestSuite) TestGetOrdersCount_Success() {
 }
 
 func (s *OrderHandlerTestSuite) TestGetOrdersCount_Error() {
-	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(0, errors.New("db error")).Once()
+	s.mockOrderRepo.On("GetOrdersCount", mock.Anything).Return(int64(0), errors.New("db error")).Once()
 
 	res, err := s.handler.GetOrdersCount(s.ctx, &struct{}{})
 	s.Error(err)

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/file/dto"
+	"lorem-backend/internal/modules/file/repository"
 	"mime/multipart"
 	"reflect"
 	"testing"
@@ -44,57 +45,18 @@ func setMultipartFormFilesData[T any](m *huma.MultipartFormFiles[T], val *T) {
 }
 
 // ────────────────────────────────────────────────────────────
-// Mock Definitions
-// ────────────────────────────────────────────────────────────
-
-type MockFileRepository struct {
-	mock.Mock
-}
-
-func (m *MockFileRepository) CreateFileMeta(ctx context.Context, fileMeta *database.File) (uuid.UUID, error) {
-	args := m.Called(ctx, fileMeta)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockFileRepository) GetFileMetaByID(ctx context.Context, fileID uuid.UUID) (*database.File, error) {
-	args := m.Called(ctx, fileID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.File), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockFileRepository) GetAllFilesMetadata(ctx context.Context, page int64, pageSize int64) ([]database.File, int64, error) {
-	args := m.Called(ctx, page, pageSize)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.File), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockFileRepository) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, objKey, file, size, contentType)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
-	args := m.Called(ctx, objKey)
-	return args.String(0), args.Error(1)
-}
-
-// ────────────────────────────────────────────────────────────
 // Suite Setup
 // ────────────────────────────────────────────────────────────
 
 type FileHandlerTestSuite struct {
 	suite.Suite
-	mockFileRepo *MockFileRepository
+	mockFileRepo *repository.MockFileRepository
 	handler      FileHandler
 	ctx          context.Context
 }
 
 func (s *FileHandlerTestSuite) SetupTest() {
-	s.mockFileRepo = new(MockFileRepository)
+	s.mockFileRepo = repository.NewMockFileRepository(s.T())
 	s.handler = NewFileHandlerImpl(s.mockFileRepo)
 	s.ctx = context.Background()
 }

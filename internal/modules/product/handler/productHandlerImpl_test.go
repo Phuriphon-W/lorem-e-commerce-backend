@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"mime/multipart"
+	fileRepo "lorem-backend/internal/modules/file/repository"
 	"reflect"
 	"testing"
 	"unsafe"
@@ -28,118 +28,18 @@ func (d dummyFile) Close() error {
 	return nil
 }
 
-// MockProductRepository is a mock of repository.ProductRepository
-type MockProductRepository struct {
-	mock.Mock
-}
-
-func (m *MockProductRepository) CreateProduct(ctx context.Context, product *database.Product) (uuid.UUID, error) {
-	args := m.Called(ctx, product)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockProductRepository) GetProducts(ctx context.Context, page int64, pageSize int64, category, search, order string) ([]database.Product, int64, error) {
-	args := m.Called(ctx, page, pageSize, category, search, order)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockProductRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*database.Product, error) {
-	args := m.Called(ctx, productID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
-	args := m.Called(ctx, productIDs)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
-	args := m.Called(ctx, productId)
-	return args.Get(0).(uint), args.Error(1)
-}
-
-func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
-	args := m.Called(ctx, productID, updateData)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []repository.StockDeduction) error {
-	args := m.Called(ctx, deductions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) AddProductStocks(ctx context.Context, additions []repository.StockDeduction) error {
-	args := m.Called(ctx, additions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) DeleteProductByID(ctx context.Context, productID uuid.UUID) error {
-	args := m.Called(ctx, productID)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return int64(args.Int(0)), args.Error(1)
-}
-
-// MockFileRepository is a mock of file.FileRepository
-type MockFileRepository struct {
-	mock.Mock
-}
-
-func (m *MockFileRepository) CreateFileMeta(ctx context.Context, fileMeta *database.File) (uuid.UUID, error) {
-	args := m.Called(ctx, fileMeta)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockFileRepository) GetFileMetaByID(ctx context.Context, fileID uuid.UUID) (*database.File, error) {
-	args := m.Called(ctx, fileID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.File), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockFileRepository) GetAllFilesMetadata(ctx context.Context, page int64, pageSize int64) ([]database.File, int64, error) {
-	args := m.Called(ctx, page, pageSize)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.File), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockFileRepository) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, objKey, file, size, contentType)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
-	args := m.Called(ctx, objKey)
-	return args.String(0), args.Error(1)
-}
-
 // Suite Definition
 type ProductHandlerTestSuite struct {
 	suite.Suite
-	mockProductRepo *MockProductRepository
-	mockFileRepo    *MockFileRepository
+	mockProductRepo *repository.MockProductRepository
+	mockFileRepo    *fileRepo.MockFileRepository
 	handler         ProductHandler
 	ctx             context.Context
 }
 
 func (s *ProductHandlerTestSuite) SetupTest() {
-	s.mockProductRepo = new(MockProductRepository)
-	s.mockFileRepo = new(MockFileRepository)
+	s.mockProductRepo = repository.NewMockProductRepository(s.T())
+	s.mockFileRepo = fileRepo.NewMockFileRepository(s.T())
 	s.handler = NewProductHandlerImpl(s.mockProductRepo, s.mockFileRepo)
 	s.ctx = context.Background()
 }
@@ -534,7 +434,7 @@ func TestProductHandlerSuite(t *testing.T) {
 }
 
 func (s *ProductHandlerTestSuite) TestGetProductsCount_Success() {
-	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(150, nil).Once()
+	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(int64(150), nil).Once()
 
 	res, err := s.handler.GetProductsCount(s.ctx, &struct{}{})
 	s.NoError(err)
@@ -543,7 +443,7 @@ func (s *ProductHandlerTestSuite) TestGetProductsCount_Success() {
 }
 
 func (s *ProductHandlerTestSuite) TestGetProductsCount_Error() {
-	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(0, errors.New("db error")).Once()
+	s.mockProductRepo.On("GetProductsCount", mock.Anything).Return(int64(0), errors.New("db error")).Once()
 
 	res, err := s.handler.GetProductsCount(s.ctx, &struct{}{})
 	s.Error(err)
