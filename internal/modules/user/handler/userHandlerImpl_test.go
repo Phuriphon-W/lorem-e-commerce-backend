@@ -7,52 +7,22 @@ import (
 
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/user/dto"
+	"lorem-backend/internal/modules/user/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-// MockUserRepository is a mock type for the UserRepository type
-type MockUserRepository struct {
-	mock.Mock
-}
-
-func (m *MockUserRepository) GetUsers(ctx context.Context, page, pageSize int64, search, order string) ([]database.User, int64, error) {
-	args := m.Called(ctx, page, pageSize, search, order)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.User), int64(args.Int(1)), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockUserRepository) GetUserByID(ctx context.Context, userID uuid.UUID) (*database.User, error) {
-	args := m.Called(ctx, userID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.User), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockUserRepository) UpdateUser(ctx context.Context, user *database.User) error {
-	args := m.Called(ctx, user)
-	return args.Error(0)
-}
-
-func (m *MockUserRepository) GetUsersCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return int64(args.Int(0)), args.Error(1)
-}
-
 type UserHandlerTestSuite struct {
 	suite.Suite
-	mockRepo *MockUserRepository
+	mockRepo *repository.MockUserRepository
 	handler  UserHandler
 	ctx      context.Context
 }
 
 func (s *UserHandlerTestSuite) SetupTest() {
-	s.mockRepo = new(MockUserRepository)
+	s.mockRepo = repository.NewMockUserRepository(s.T())
 	s.handler = NewUserHandlerImpl(s.mockRepo)
 	s.ctx = context.Background()
 }
@@ -345,7 +315,7 @@ func (s *UserHandlerTestSuite) TestGetUsers() {
 				PageSize:   10,
 			},
 			setupMock: func() {
-				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(usersList, 2, nil).Once()
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(usersList, int64(2), nil).Once()
 			},
 			expectedError: false,
 			verify: func(res *dto.GetUsersOutputDto) {
@@ -365,7 +335,7 @@ func (s *UserHandlerTestSuite) TestGetUsers() {
 				Order:      "first_name ASC",
 			},
 			setupMock: func() {
-				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), "First1", "first_name ASC").Return([]database.User{usersList[0]}, 1, nil).Once()
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), "First1", "first_name ASC").Return([]database.User{usersList[0]}, int64(1), nil).Once()
 			},
 			expectedError: false,
 			verify: func(res *dto.GetUsersOutputDto) {
@@ -382,7 +352,7 @@ func (s *UserHandlerTestSuite) TestGetUsers() {
 				PageSize:   10,
 			},
 			setupMock: func() {
-				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(nil, 0, errors.New("repository error")).Once()
+				s.mockRepo.On("GetUsers", mock.Anything, int64(1), int64(10), mock.Anything, mock.Anything).Return(nil, int64(0), errors.New("repository error")).Once()
 			},
 			expectedError: true,
 			verify: func(res *dto.GetUsersOutputDto) {
@@ -414,7 +384,7 @@ func TestUserHandlerSuite(t *testing.T) {
 }
 
 func (s *UserHandlerTestSuite) TestGetUsersCount_Success() {
-	s.mockRepo.On("GetUsersCount", mock.Anything).Return(15, nil).Once()
+	s.mockRepo.On("GetUsersCount", mock.Anything).Return(int64(15), nil).Once()
 
 	res, err := s.handler.GetUsersCount(s.ctx, &struct{}{})
 	s.NoError(err)
@@ -423,7 +393,7 @@ func (s *UserHandlerTestSuite) TestGetUsersCount_Success() {
 }
 
 func (s *UserHandlerTestSuite) TestGetUsersCount_Error() {
-	s.mockRepo.On("GetUsersCount", mock.Anything).Return(0, errors.New("db error")).Once()
+	s.mockRepo.On("GetUsersCount", mock.Anything).Return(int64(0), errors.New("db error")).Once()
 
 	res, err := s.handler.GetUsersCount(s.ctx, &struct{}{})
 	s.Error(err)

@@ -9,6 +9,8 @@ import (
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/auth/dto"
+	"lorem-backend/internal/modules/auth/repository"
+	"lorem-backend/internal/modules/email/service"
 	"lorem-backend/internal/utils"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -17,67 +19,10 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// MockAuthRepository is a mock type for AuthRepository
-type MockAuthRepository struct {
-	mock.Mock
-}
-
-func (m *MockAuthRepository) RegisterUser(ctx context.Context, user *database.User) (uuid.UUID, string, error) {
-	args := m.Called(ctx, user)
-	return args.Get(0).(uuid.UUID), args.String(1), args.Error(2)
-}
-
-func (m *MockAuthRepository) GetUserByEmail(ctx context.Context, email string) (*struct {
-	ID           uuid.UUID
-	Username     string
-	PasswordHash string
-	IsAdmin      bool
-}, error) {
-	args := m.Called(ctx, email)
-	if args.Get(0) != nil {
-		return args.Get(0).(*struct {
-			ID           uuid.UUID
-			Username     string
-			PasswordHash string
-			IsAdmin      bool
-		}), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockAuthRepository) GetUserByUsername(ctx context.Context, username string) (*struct {
-	ID       uuid.UUID
-	Username string
-}, error) {
-	args := m.Called(ctx, username)
-	if args.Get(0) != nil {
-		return args.Get(0).(*struct {
-			ID       uuid.UUID
-			Username string
-		}), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockAuthRepository) UpdatePassword(ctx context.Context, userID uuid.UUID, newPasswordHash string) error {
-	args := m.Called(ctx, userID, newPasswordHash)
-	return args.Error(0)
-}
-
-// MockEmailService is a mock type for EmailService
-type MockEmailService struct {
-	mock.Mock
-}
-
-func (m *MockEmailService) SendResetPasswordEmail(toEmail, userName, resetLink string) error {
-	args := m.Called(toEmail, userName, resetLink)
-	return args.Error(0)
-}
-
 type AuthHandlerTestSuite struct {
 	suite.Suite
-	mockRepo  *MockAuthRepository
-	mockEmail *MockEmailService
+	mockRepo  *repository.MockAuthRepository
+	mockEmail *service.MockEmailService
 	handler   AuthHandler
 	ctx       context.Context
 }
@@ -88,8 +33,8 @@ func (s *AuthHandlerTestSuite) SetupTest() {
 		JWTExpire:   "24h",
 		FrontendURL: "http://localhost:3000",
 	}
-	s.mockRepo = new(MockAuthRepository)
-	s.mockEmail = new(MockEmailService)
+	s.mockRepo = repository.NewMockAuthRepository(s.T())
+	s.mockEmail = service.NewMockEmailService(s.T())
 	s.handler = NewAuthHandlerImpl(s.mockRepo, s.mockEmail)
 	s.ctx = context.Background()
 }

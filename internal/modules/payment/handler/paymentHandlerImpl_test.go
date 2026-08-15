@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	orderRepo "lorem-backend/internal/modules/order/repository"
+	"lorem-backend/internal/modules/payment/repository"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,9 +15,9 @@ import (
 	"lorem-backend/internal/config"
 	"lorem-backend/internal/database"
 	"lorem-backend/internal/modules/payment/dto"
-	"lorem-backend/internal/modules/payment/gateway"
-	productRepository "lorem-backend/internal/modules/product/repository"
-	wsService "lorem-backend/internal/modules/websocket/service"
+	gateway "lorem-backend/internal/modules/payment/gateway"
+	productRepo "lorem-backend/internal/modules/product/repository"
+	service "lorem-backend/internal/modules/websocket/service"
 
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
@@ -28,196 +30,27 @@ import (
 // Mock Definitions
 // ────────────────────────────────────────────────────────────
 
-type MockPaymentRepository struct {
-	mock.Mock
-}
-
-func (m *MockPaymentRepository) CreatePayment(ctx context.Context, payment *database.Payment) (uuid.UUID, error) {
-	args := m.Called(ctx, payment)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockPaymentRepository) GetUserPaymentByOrderID(ctx context.Context, orderID, userID uuid.UUID) (*database.Payment, error) {
-	args := m.Called(ctx, orderID, userID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Payment), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockPaymentRepository) GetUserPaymentsByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, orderBy, status string) ([]database.Payment, int64, error) {
-	args := m.Called(ctx, userID, page, pageSize, orderBy, status)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Payment), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockPaymentRepository) UpdatePaymentStatusByOrderID(ctx context.Context, orderID uuid.UUID, status string) error {
-	args := m.Called(ctx, orderID, status)
-	return args.Error(0)
-}
-
-type MockOrderRepository struct {
-	mock.Mock
-}
-
-func (m *MockOrderRepository) CreateOrder(ctx context.Context, order *database.Order) (uuid.UUID, error) {
-	args := m.Called(ctx, order)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockOrderRepository) GetOrdersByUserID(ctx context.Context, userID uuid.UUID, page, pageSize int64, status string, orderBy string) ([]database.Order, int64, error) {
-	args := m.Called(ctx, userID, page, pageSize, status, orderBy)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Order), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockOrderRepository) GetOrderByID(ctx context.Context, orderID uuid.UUID) (*database.Order, error) {
-	args := m.Called(ctx, orderID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Order), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockOrderRepository) UpdateOrderStatus(ctx context.Context, orderID uuid.UUID, status database.OrderStatus) error {
-	args := m.Called(ctx, orderID, status)
-	return args.Error(0)
-}
-
-func (m *MockOrderRepository) UpdateOrderSession(ctx context.Context, orderID uuid.UUID, sessionID, sessionURL string, expiresAt *time.Time) error {
-	args := m.Called(ctx, orderID, sessionID, sessionURL, expiresAt)
-	return args.Error(0)
-}
-
-func (m *MockOrderRepository) GetOrdersCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(int64), args.Error(1)
-}
-
-type MockProductRepository struct {
-	mock.Mock
-}
-
-func (m *MockProductRepository) CreateProduct(ctx context.Context, product *database.Product) (uuid.UUID, error) {
-	args := m.Called(ctx, product)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockProductRepository) GetProducts(ctx context.Context, page int64, pageSize int64, category, search, order string) ([]database.Product, int64, error) {
-	args := m.Called(ctx, page, pageSize, category, search, order)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockProductRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*database.Product, error) {
-	args := m.Called(ctx, productID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
-	args := m.Called(ctx, productIDs)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
-	args := m.Called(ctx, productId)
-	return args.Get(0).(uint), args.Error(1)
-}
-
-func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
-	args := m.Called(ctx, productID, updateData)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(int64), args.Error(1)
-}
-
-func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepository.StockDeduction) error {
-	args := m.Called(ctx, deductions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) AddProductStocks(ctx context.Context, additions []productRepository.StockDeduction) error {
-	args := m.Called(ctx, additions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) DeleteProductByID(ctx context.Context, productID uuid.UUID) error {
-	args := m.Called(ctx, productID)
-	return args.Error(0)
-}
-
-type MockPaymentGateway struct {
-	mock.Mock
-}
-
-func (m *MockPaymentGateway) CreateCheckoutSession(orderID uuid.UUID, totalPrice float32, successURL, cancelURL string) (string, string, int64, error) {
-	args := m.Called(orderID, totalPrice, successURL, cancelURL)
-	return args.String(0), args.String(1), args.Get(2).(int64), args.Error(3)
-}
-
-func (m *MockPaymentGateway) ExtractOrderEventFromWebhook(payload []byte, c echo.Context) (string, string, error) {
-	args := m.Called(payload, c)
-	return args.String(0), args.String(1), args.Error(2)
-}
-
-func (m *MockPaymentGateway) VerifySessionPayment(sessionID string) (bool, error) {
-	args := m.Called(sessionID)
-	return args.Bool(0), args.Error(1)
-}
-
-type MockWebsocketService struct {
-	mock.Mock
-}
-
-func (m *MockWebsocketService) SendToUser(userID uuid.UUID, message wsService.WSPayload) {
-	m.Called(userID, message)
-}
-
-func (m *MockWebsocketService) WebsocketHandler(c echo.Context) error {
-	args := m.Called(c)
-	return args.Error(0)
-}
-
-func (m *MockWebsocketService) Run(ctx context.Context) {
-	m.Called(ctx)
-}
-
 // ────────────────────────────────────────────────────────────
 // Suite Setup
 // ────────────────────────────────────────────────────────────
 
 type PaymentHandlerTestSuite struct {
 	suite.Suite
-	mockPaymentRepo *MockPaymentRepository
-	mockOrderRepo   *MockOrderRepository
-	mockProductRepo *MockProductRepository
-	mockGateway     *MockPaymentGateway
-	mockWsService   *MockWebsocketService
+	mockPaymentRepo *repository.MockPaymentRepository
+	mockOrderRepo   *orderRepo.MockOrderRepository
+	mockProductRepo *productRepo.MockProductRepository
+	mockGateway     *gateway.MockPaymentGateway
+	mockWsService   *service.MockWebsocketService
 	handler         PaymentHandler
 	ctx             context.Context
 }
 
 func (s *PaymentHandlerTestSuite) SetupTest() {
-	s.mockPaymentRepo = new(MockPaymentRepository)
-	s.mockOrderRepo = new(MockOrderRepository)
-	s.mockProductRepo = new(MockProductRepository)
-	s.mockGateway = new(MockPaymentGateway)
-	s.mockWsService = new(MockWebsocketService)
+	s.mockPaymentRepo = repository.NewMockPaymentRepository(s.T())
+	s.mockOrderRepo = orderRepo.NewMockOrderRepository(s.T())
+	s.mockProductRepo = productRepo.NewMockProductRepository(s.T())
+	s.mockGateway = gateway.NewMockPaymentGateway(s.T())
+	s.mockWsService = service.NewMockWebsocketService(s.T())
 
 	config.GlobalConfig = &config.Config{
 		FrontendURL: "http://test-frontend.com",
@@ -568,7 +401,7 @@ func (s *PaymentHandlerTestSuite) TestHandleStripeWebhook() {
 				s.mockOrderRepo.On("GetOrderByID", mock.Anything, orderID).
 					Return(order, nil).Once()
 
-				expectedAdditions := []productRepository.StockDeduction{
+				expectedAdditions := []productRepo.StockDeduction{
 					{ProductID: prodID1, Quantity: 2},
 					{ProductID: prodID2, Quantity: 1},
 				}
@@ -578,7 +411,7 @@ func (s *PaymentHandlerTestSuite) TestHandleStripeWebhook() {
 				s.mockOrderRepo.On("UpdateOrderStatus", mock.Anything, orderID, database.Failed).
 					Return(nil).Once()
 
-				expectedPayload := wsService.WSPayload{
+				expectedPayload := service.WSPayload{
 					Type: "ORDER_EXPIRED",
 					Payload: map[string]string{
 						"order_id": orderID.String(),
@@ -606,7 +439,7 @@ func (s *PaymentHandlerTestSuite) TestHandleStripeWebhook() {
 				s.mockOrderRepo.On("GetOrderByID", mock.Anything, orderID).
 					Return(order, nil).Once()
 
-				expectedAdditions := []productRepository.StockDeduction{
+				expectedAdditions := []productRepo.StockDeduction{
 					{ProductID: prodID1, Quantity: 2},
 					{ProductID: prodID2, Quantity: 1},
 				}

@@ -54,6 +54,9 @@ coverage-check:
 	awk "BEGIN{if ($$COVERAGE + 0 < 80) {print \"FAIL: Coverage \" $$COVERAGE \"% is below 80% threshold\"; exit 1}}"
 	@rm -f coverage.out
 
+coverage-report:
+	go tool cover -html coverage.out
+
 pre-commit: lint test
 
 .PHONY: loadtest

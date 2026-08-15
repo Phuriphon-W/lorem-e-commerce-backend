@@ -3,7 +3,8 @@ package handler
 import (
 	"context"
 	"errors"
-	"mime/multipart"
+	"lorem-backend/internal/modules/cart/repository"
+	fileRepo "lorem-backend/internal/modules/file/repository"
 	"testing"
 
 	"lorem-backend/internal/database"
@@ -20,141 +21,11 @@ import (
 // ────────────────────────────────────────────────────────────
 
 // MockCartRepository is an inline testify/mock implementation of repository.CartRepository
-type MockCartRepository struct {
-	mock.Mock
-}
-
-func (m *MockCartRepository) GetCartByUserId(ctx context.Context, userId uuid.UUID) (*database.Cart, error) {
-	args := m.Called(ctx, userId)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Cart), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockCartRepository) CreateCartItem(ctx context.Context, cartItem *database.CartItem) (uuid.UUID, error) {
-	args := m.Called(ctx, cartItem)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockCartRepository) GetCartItem(ctx context.Context, cartId, productId uuid.UUID) (*database.CartItem, error) {
-	args := m.Called(ctx, cartId, productId)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.CartItem), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockCartRepository) EditCartItem(ctx context.Context, cartId uuid.UUID, productId uuid.UUID, quantity uint) error {
-	args := m.Called(ctx, cartId, productId, quantity)
-	return args.Error(0)
-}
-
-func (m *MockCartRepository) RemoveCartItems(ctx context.Context, cartId uuid.UUID, productIds []uuid.UUID) error {
-	args := m.Called(ctx, cartId, productIds)
-	return args.Error(0)
-}
 
 // MockProductRepository is an inline testify/mock implementation of productRepo.ProductRepository
-type MockProductRepository struct {
-	mock.Mock
-}
-
-func (m *MockProductRepository) CreateProduct(ctx context.Context, product *database.Product) (uuid.UUID, error) {
-	args := m.Called(ctx, product)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockProductRepository) GetProducts(ctx context.Context, page int64, pageSize int64, category, search, order string) ([]database.Product, int64, error) {
-	args := m.Called(ctx, page, pageSize, category, search, order)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockProductRepository) GetProductByID(ctx context.Context, productID uuid.UUID) (*database.Product, error) {
-	args := m.Called(ctx, productID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductsByIDs(ctx context.Context, productIDs []uuid.UUID) ([]database.Product, error) {
-	args := m.Called(ctx, productIDs)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.Product), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockProductRepository) GetProductStock(ctx context.Context, productId uuid.UUID) (uint, error) {
-	args := m.Called(ctx, productId)
-	return args.Get(0).(uint), args.Error(1)
-}
-
-func (m *MockProductRepository) UpdateProductByID(ctx context.Context, productID uuid.UUID, updateData map[string]interface{}) error {
-	args := m.Called(ctx, productID, updateData)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) GetProductsCount(ctx context.Context) (int64, error) {
-	args := m.Called(ctx)
-	return args.Get(0).(int64), args.Error(1)
-}
-
-func (m *MockProductRepository) DeductProductStocks(ctx context.Context, deductions []productRepo.StockDeduction) error {
-	args := m.Called(ctx, deductions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) AddProductStocks(ctx context.Context, additions []productRepo.StockDeduction) error {
-	args := m.Called(ctx, additions)
-	return args.Error(0)
-}
-
-func (m *MockProductRepository) DeleteProductByID(ctx context.Context, productID uuid.UUID) error {
-	args := m.Called(ctx, productID)
-	return args.Error(0)
-}
 
 // MockFileRepository is an inline testify/mock implementation of fileRepo.FileRepository
 // (which embeds ObjectStorage and adds DB-backed metadata methods)
-type MockFileRepository struct {
-	mock.Mock
-}
-
-func (m *MockFileRepository) CreateFileMeta(ctx context.Context, fileMeta *database.File) (uuid.UUID, error) {
-	args := m.Called(ctx, fileMeta)
-	return args.Get(0).(uuid.UUID), args.Error(1)
-}
-
-func (m *MockFileRepository) GetFileMetaByID(ctx context.Context, fileID uuid.UUID) (*database.File, error) {
-	args := m.Called(ctx, fileID)
-	if args.Get(0) != nil {
-		return args.Get(0).(*database.File), args.Error(1)
-	}
-	return nil, args.Error(1)
-}
-
-func (m *MockFileRepository) GetAllFilesMetadata(ctx context.Context, page int64, pageSize int64) ([]database.File, int64, error) {
-	args := m.Called(ctx, page, pageSize)
-	if args.Get(0) != nil {
-		return args.Get(0).([]database.File), args.Get(1).(int64), args.Error(2)
-	}
-	return nil, 0, args.Error(2)
-}
-
-func (m *MockFileRepository) UploadFile(ctx context.Context, objKey string, file multipart.File, size int64, contentType string) (string, error) {
-	args := m.Called(ctx, objKey, file, size, contentType)
-	return args.String(0), args.Error(1)
-}
-
-func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey string) (string, error) {
-	args := m.Called(ctx, objKey)
-	return args.String(0), args.Error(1)
-}
 
 // ────────────────────────────────────────────────────────────
 // Suite Definition
@@ -162,17 +33,17 @@ func (m *MockFileRepository) GeneratePresignUrl(ctx context.Context, objKey stri
 
 type CartHandlerTestSuite struct {
 	suite.Suite
-	mockCartRepo    *MockCartRepository
-	mockProductRepo *MockProductRepository
-	mockFileRepo    *MockFileRepository
+	mockCartRepo    *repository.MockCartRepository
+	mockProductRepo *productRepo.MockProductRepository
+	mockFileRepo    *fileRepo.MockFileRepository
 	handler         CartHandler
 	ctx             context.Context
 }
 
 func (s *CartHandlerTestSuite) SetupTest() {
-	s.mockCartRepo = new(MockCartRepository)
-	s.mockProductRepo = new(MockProductRepository)
-	s.mockFileRepo = new(MockFileRepository)
+	s.mockCartRepo = repository.NewMockCartRepository(s.T())
+	s.mockProductRepo = productRepo.NewMockProductRepository(s.T())
+	s.mockFileRepo = fileRepo.NewMockFileRepository(s.T())
 	s.handler = NewCartHandler(s.mockCartRepo, s.mockFileRepo, s.mockProductRepo)
 	s.ctx = context.Background()
 }
